@@ -11,26 +11,28 @@ CURRENT_VERSION: str = '0.1.0'
 
 
 def _init_args():
-    help_txt: str = (f'Open5Gs-log-observer version {CURRENT_VERSION} {NEWLINE}'
-                     f'Copyright (C) 2023-2024 by TH-Augsburg {NEWLINE}'
+    help_txt: str = (f'Open5Gs-Log-Observer version {CURRENT_VERSION} {NEWLINE}'
+                     f'Copyright (C) 2023 by TH-Augsburg {NEWLINE}'
                      f'Developer: Jonas Winkler {NEWLINE}'
                      f'Documentation: https:// {NEWLINE}'
+                     f'GitHub: https://github.com/HSAnet/open5gs-ui {NEWLINE}'
                      f'{NEWLINE}'
-                     f'Compatibility: {NEWLINE}'
+                     f'Supported OS: {NEWLINE}'
                      f'\t Linux {NEWLINE}'
+                     f'{NEWLINE}'
                      f'This is an open-source tool to read all log-files created by Open5Gs. {NEWLINE}'
                      f'Open5Gs uses systemd services and mongoDB to log information. Both are covered and conveyed {NEWLINE}'
-                     f'This tool comes with ABSOLUTELY NO WARRANTY. This is free software, and you {NEWLINE}'
-                     f'are welcome to redistribute it under certain conditions. See the {NEWLINE} '
-                     f'GNU General Public Licence for details. {NEWLINE}'
-                     f'')
-    parser = argparse.ArgumentParser(description=help_txt, formatter_class=argparse.RawTextHelpFormatter)
+                     f'{NEWLINE}'
+                     f'This tool comes with ABSOLUTELY NO WARRANTY. This is free software, and you{NEWLINE}'
+                     f'are welcome to redistribute it under certain conditions. See the{NEWLINE} '
+                     f'GNU General Public Licence for details.{NEWLINE}')
+    parser = argparse.ArgumentParser(prog="Open5Gs-Log-Observer", description=help_txt, formatter_class=argparse.RawTextHelpFormatter)
     parser.add_argument("dest", type=str, help="server IP or name")
     parser.add_argument("-v", "--verbose", help="increase verbosity", action="store_true")
-    parser.add_argument("-q", "--quite", help="suppress non-error messages")
-    parser.add_argument("-d", "--delay", help="use delay to reduce load on system")
-    parser.add_argument("-p", "--port", help="port of REST-Service")
-    parser.add_argument("-V", "--version", help="print version + other info and exit")
+    parser.add_argument("-q", "--quite", metavar='', help="suppress non-error messages")
+    parser.add_argument("-d", "--delay", metavar='', help="use delay to reduce load on system")
+    parser.add_argument("-p", "--port", metavar='', help="port of REST-Service")
+    parser.add_argument("-V", "--version", metavar='', help="print version and other info and exit")
     return parser.parse_args()
 
 
