@@ -125,7 +125,10 @@ def stop_logger() -> None:
     :return: None
     """
     LOG_QUEUE.put_nowait(None)
-    LISTENER_PROC.join()
+    try:
+        LISTENER_PROC.join()
+    except NameError:
+        pass    # Ignore -> Process was not initiated yet
 
 
 def start_logger(level: str) -> None:
