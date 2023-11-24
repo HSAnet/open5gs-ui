@@ -1,11 +1,12 @@
+import logging
 import argparse
 import urllib.request
 from os import linesep
-from typing import Callable
+from urllib import error as url_err
 
 from scheduler import Scheduler
+from utils.logger import start_logger, stop_logger
 
-c_print: Callable[[str], None] = lambda content: print("\u001B[31m" + str(content) + "\u001B[0m")
 NEWLINE: str = linesep
 CURRENT_VERSION: str = '0.1.0'
 
@@ -37,24 +38,43 @@ def _init_args():
 
 
 def _check_rest_server(args: argparse.Namespace):
-    match int(str(urllib.request.urlopen(f'{args.dest}:{'' if not args.port else args.port}').getcode())[:1]):
-        # Todo log accordingly
+    logger = logging.getLogger()
+    try:
+        response_code: int = urllib.request.urlopen(f'{args.dest}:{'' if not args.port else args.port}').getcode()
+    except url_err.HTTPError as http_err:
+        response_code = http_err.code
+        logger.critical(http_err)
+    except url_err.URLError as u_err:
+        response_code = 500
+        logger.critical(u_err)
+    except Exception:
+        import sys, traceback
+        traceback.print_exc(file=sys.stderr)
+        cleanup()
+
+    match int(str(response_code)[:1]):
         case 1:
-            c_print('Information')
+            logger.info("Server is connecting - %d)" % response_code)
         case 2:
-            c_print("Success")
+            logger.info("Server connection successful - %d" % response_code)
         case 3:
-            c_print("Redirect")
+            logger.info("Server is redirecting - %d" % response_code)
         case 4:
-            c_print("Client Error")
+            logger.warning("Client was not able to connect! - %d" % response_code)
+            logger.info("Program will proceed, however logs cannot not be sent!")
         case 5:
-            c_print("Server Error")
-        case _:
-            c_print("Unexpected Error")
+            logger.warning("Server was unable to connect! - %d" % response_code)
+            logger.info("Program will proceed, however logs cannot not be sent!")
+
+
+def cleanup():
+    stop_logger()
+    exit(-1)
 
 
 def main(delay: int = 1):
     args: argparse.Namespace = _init_args()
+    start_logger('INFO' if args.verbose else 'WARNING')
     _check_rest_server(args=args)
 
     scheduler: Scheduler = Scheduler(delay)
