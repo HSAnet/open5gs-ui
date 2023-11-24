@@ -6,6 +6,7 @@ from urllib import error as url_err
 
 from scheduler import Scheduler
 from utils.logger import start_logger, stop_logger
+from utils.exceptions import ArgsException, e_print
 
 NEWLINE: str = linesep
 CURRENT_VERSION: str = '0.1.0'
@@ -30,10 +31,10 @@ def _init_args():
     parser = argparse.ArgumentParser(prog="Open5Gs-Log-Observer", description=help_txt, formatter_class=argparse.RawTextHelpFormatter)
     parser.add_argument("dest", type=str, help="server IP or name")
     parser.add_argument("-v", "--verbose", help="increase verbosity", action="store_true")
-    parser.add_argument("-q", "--quite", metavar='', help="suppress non-error messages")
-    parser.add_argument("-d", "--delay", metavar='', help="use delay to reduce load on system")
-    parser.add_argument("-p", "--port", metavar='', help="port of REST-Service")
-    parser.add_argument("-V", "--version", metavar='', help="print version and other info and exit")
+    parser.add_argument("-q", "--quite", action="store_true", help="suppress non-critical messages")
+    parser.add_argument("-d", "--delay", action="store_true", help="use delay to reduce load on system")
+    parser.add_argument("-p", "--port", action="store_true", help="port of REST-Service")
+    parser.add_argument("-V", "--version", action="version", version=f"%(prog)s {CURRENT_VERSION}", help="print version and other info and exit")
     return parser.parse_args()
 
 
@@ -72,13 +73,32 @@ def cleanup():
     exit(-1)
 
 
-def main(delay: int = 1):
-    args: argparse.Namespace = _init_args()
-    start_logger('INFO' if args.verbose else 'WARNING')
-    _check_rest_server(args=args)
+def validate_args(args: argparse.Namespace):
+    if args.verbose and args.quite:
+        raise ArgsException('Verbose/Quite option not allowed in combination')
+    try:
+        int(args.delay)
+    except ValueError:
+        raise ArgsException('Delay must be integer value')
 
-    scheduler: Scheduler = Scheduler(delay)
-    scheduler.run()
+
+def main():
+    try:
+        args: argparse.Namespace = _init_args()
+        validate_args(args)
+
+        start_logger('INFO' if args.verbose else 'WARNING' 'CRITICAL' if args.quite else 'WARNING')
+        _check_rest_server(args=args)
+
+        scheduler: Scheduler = Scheduler(1 if not args.delay else int(args.delay))
+        scheduler.run()
+    # Logger not necessarily initiated yet!
+    except ArgsException as ae:
+        e_print(ae.msg)
+    except Exception as e:
+        e_print(e)
+    finally:
+        cleanup()
 
 
 if __name__ == '__main__':
