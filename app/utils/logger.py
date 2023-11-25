@@ -1,12 +1,12 @@
+import sys
 import logging
 import multiprocessing
+from typing import Dict
 import logging.handlers
-import sys
 from asyncio import Queue
+from functools import partial
 from multiprocessing import Process
 from logging.config import dictConfig
-from typing import Dict
-from functools import partial
 
 # ---------------------------------
 
@@ -104,13 +104,16 @@ def _listener_process(queue, log_config):
                 break
             logger = logging.getLogger(record.name)
             logger.handle(record)
+        except KeyboardInterrupt:
+            stop_logger()
+            break
         except Exception:
             import sys, traceback
             traceback.print_exc(file=sys.stderr)
 
 
-def worker_config():
-    h = logging.handlers.QueueHandler(LOG_QUEUE)
+def worker_config(queue):
+    h = logging.handlers.QueueHandler(queue)
     root = logging.getLogger()
     root.addHandler(h)
     root.setLevel(logging.DEBUG)
@@ -141,4 +144,4 @@ def start_logger(level: str) -> None:
     LISTENER_PROC = multiprocessing.Process(target=_listener_process,
                                             args=(LOG_QUEUE, partial(_setup_listener, level)))
     LISTENER_PROC.start()
-    worker_config()
+    worker_config(LOG_QUEUE)
