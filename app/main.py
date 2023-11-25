@@ -32,7 +32,7 @@ def _init_args():
     parser.add_argument("dest", type=str, help="server IP or name")
     parser.add_argument("-v", "--verbose", help="increase verbosity", action="store_true")
     parser.add_argument("-q", "--quite", action="store_true", help="suppress non-critical messages")
-    parser.add_argument("-d", "--delay", action="store_true", help="use delay to reduce load on system")
+    parser.add_argument("-d", "--delay", default=0, type=int, nargs="?", help="use delay to reduce load on system")
     parser.add_argument("-p", "--port", action="store_true", help="port of REST-Service")
     parser.add_argument("-V", "--version", action="version", version=f"%(prog)s {CURRENT_VERSION}", help="print version and other info and exit")
     return parser.parse_args()
