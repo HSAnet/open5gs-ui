@@ -5,8 +5,7 @@ from os import linesep
 from urllib import error as url_err
 
 from scheduler import Scheduler
-from utils.logger import start_logger, stop_logger
-from utils.exceptions import ArgsException, e_print
+from utils import start_logger, stop_logger, worker_config, LOG_QUEUE, ArgsException, e_print
 
 NEWLINE: str = linesep
 CURRENT_VERSION: str = '0.1.0'
@@ -87,6 +86,7 @@ def main():
         args: argparse.Namespace = _init_args()
         validate_args(args)
 
+        worker_config(LOG_QUEUE)
         start_logger('INFO' if args.verbose else 'WARNING' 'CRITICAL' if args.quite else 'WARNING')
         _check_rest_server(args=args)
 

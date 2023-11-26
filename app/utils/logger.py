@@ -38,7 +38,7 @@ def filter_stderr(level):
     return lambda record: (lambda lvl: record.levelno >= lvl)(getattr(logging, level))
 
 
-def _setup_listener(level="INFO") -> None:
+def _setup_listener(level="WARNING") -> None:
     """
     Configuration for logger.
     Logs are written to stdout if <= WARNING
@@ -144,4 +144,4 @@ def start_logger(level: str) -> None:
     LISTENER_PROC = multiprocessing.Process(target=_listener_process,
                                             args=(LOG_QUEUE, partial(_setup_listener, level)))
     LISTENER_PROC.start()
-    worker_config(LOG_QUEUE)
+    #worker_config(LOG_QUEUE)
