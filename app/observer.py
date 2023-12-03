@@ -16,8 +16,8 @@ class Observer:
         self._obs_logger = logging.getLogger(__name__)
 
     @property
-    def systemd_log(self):
-        return self.__systemd_logs
+    def systemd_log(self) -> List[Dict[str, Union[bool, str, List[str]]]]:
+        return [log for log in self.__systemd_logs if log['state_changed']]
 
     def __create_systemd_log(self, service_name: str, service_status: str, logs: List[str]) -> None:
         """
@@ -34,9 +34,9 @@ class Observer:
             :return: Service dict-reference
             :rtype: Dict[str, Union[bool, str, List[str]]]
             """
-            if not next((service for service in self.systemd_log if service['name'] == service_name), None):
-                self.systemd_log.append({'name': service_name, 'state_changed': True, 'status': service_status, 'logs': []})
-            return next(service for service in self.systemd_log if service['name'] == service_name)
+            if not next((service for service in self.__systemd_logs if service['name'] == service_name), None):
+                self.__systemd_logs.append({'name': service_name, 'state_changed': True, 'status': service_status, 'logs': []})
+            return next(service for service in self.__systemd_logs if service['name'] == service_name)
 
         system_log: Dict[str, Union[bool, str, List[str]]] = get_service()
         if system_log['status'] != service_status:
