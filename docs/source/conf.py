@@ -58,4 +58,4 @@ html_static_path = ['_static']
 
 
 def setup(app):
-    app.add_css_file('theme_overrides.css')
+    app.add_css_file('/_static/css_override.css')
