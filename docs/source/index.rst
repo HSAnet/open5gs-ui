@@ -1,20 +1,16 @@
-.. Open5Gs-UI documentation master file, created by
-   sphinx-quickstart on Thu Dec  7 14:56:32 2023.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
+************************
+Open5Gs-UI Documentation
+************************
 
-Welcome to Open5Gs-UI's documentation!
-======================================
+Open5Gs-UI is an extension for `Open5Gs`_. Designed to scrape data from
+5G-Network function, analyse network traffic and display scraped data via
+web server.
+
+.. _Open5Gs: https://open5gs.org/
+
 
 .. toctree::
    :maxdepth: 2
    :caption: Contents:
 
-
-
-Indices and tables
-==================
-
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
+   Logging/glob
