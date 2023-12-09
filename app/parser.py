@@ -27,6 +27,13 @@ class Parser:
             print(ie)
 
     def parse_service_logs(self, service_log_data: str) -> Iterable[Dict[str, Union[float, str]]]:
+        """
+
+
+
+        :param service_log_data:
+        :return:
+        """
         try:
             return ({'time_stamp': time.mktime(self.__str_to_float(ParsePattern.TIMESTAMP.value.search(log_message))),
                      'message': log_message}
