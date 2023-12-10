@@ -1,8 +1,6 @@
 Retrieving and processing systemd-logs
 ######################################
 
-Content:
-
 .. toctree::
    :maxdepth: 2
 

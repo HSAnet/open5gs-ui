@@ -1,28 +1,18 @@
 Starting / Executing the application
+####################################
 
+The log gathering part of the app does not require root privileges, it is however drastically faster
+with elevated access rights. The network-sniffer does require root privileges in order to access the
+network-adapter. It is recommended to either start the application like **sudo python main.py** or
+as the root user.
 
-
+App help-text
+*************
 
 .. code-block:: console
 
    python main.py --help
    usage: Open5Gs-Log-Observer [-h] [-v] [-q] [-d [DELAY]] [-p] [-V] dest
-
-   Open5Gs-Log-Observer version 0.1.0
-   Copyright (C) 2023 by TH-Augsburg
-   Developer: Jonas Winkler
-   Documentation: https://
-   GitHub: https://github.com/HSAnet/open5gs-ui
-
-   Supported OS:
-            Linux
-
-   This is an open-source tool to read all log-files created by Open5Gs.
-   Open5Gs uses systemd services and mongoDB to log information. Both are covered and conveyed
-
-   This tool comes with ABSOLUTELY NO WARRANTY. This is free software, and you
-   are welcome to redistribute it under certain conditions. See the
-   GNU General Public Licence for details.
 
    positional arguments:
         dest                  server IP or name
@@ -35,3 +25,9 @@ Starting / Executing the application
                               use delay to reduce load on system
         -p, --port            port of REST-Service
         -V, --version         print version and other info and exit
+
+
+The application supports numerous options. The **verbose** option will log anything to stdout, however important
+(Warning and above) can still be captured in stderr. The **quite** option suppresses any log message, except for
+Critical errors which terminate the app. The **delay** is a value in seconds postponing each iteration
+of data capturing. The **port** and **dest** are needed to connect to the web-application and its REST interface.
