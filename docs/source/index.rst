@@ -2,9 +2,11 @@
 Open5Gs-UI Documentation
 ************************
 
-Open5Gs-UI is an extension for `Open5Gs`_. It is used to scrape data from
-5G-Network function, analyse network traffic and display scraped data via
-web server.
+Open5GS-UI is an extension for Open5GS that provides a web-based interface for
+visualizing and managing the Open5GS network. It enables users to scrape data
+from different components of the 5G network, analyze network traffic, and monitor
+the performance of the network. The scraped data can be displayed in various charts,
+tables, and graphs, providing insights into the network's behavior.
 
 .. _Open5Gs: https://open5gs.org/
 
@@ -14,4 +16,5 @@ web server.
    :caption: Contents:
 
    Logging/glob
+   Sniffer/glob
    AppStart/glob
