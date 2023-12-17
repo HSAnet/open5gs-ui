@@ -35,9 +35,10 @@ class Parser:
         :return:
         """
         try:
-            return ({'time_stamp': time.mktime(self.__str_to_float(ParsePattern.TIMESTAMP.value.search(log_message))),
-                     'message': log_message}
-                    for log_message in service_log_data.split('\n') if log_message)
+            return ({'time_stamp': time.mktime(self.__str_to_float(tsp_str)),
+                    'message': log_message}
+                    for log_message in re.split(r'\n+', service_log_data)
+                    if log_message and (tsp_str := ParsePattern.TIMESTAMP.value.search(log_message)))
         except AttributeError as ae:
             # Todo: should return proper error
             print('b2')
@@ -45,3 +46,5 @@ class Parser:
         except IndexError as ie:
             print('2')
             print(ie)
+        except Exception as e:
+            print(e)

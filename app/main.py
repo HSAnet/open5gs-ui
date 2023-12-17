@@ -102,7 +102,6 @@ def main():
 
 
 if __name__ == '__main__':
-    import utils.sniffer as sn
-    sn.sniff()
-    #main()
-    #print(int('0800',16))
+    #import utils.sniffer as sn
+    #sn.sniff()
+    main()

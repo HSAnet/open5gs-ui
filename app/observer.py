@@ -3,13 +3,14 @@ from time import time
 import logging
 
 from parser import Parser
-from utils import Bash, BashCommands, BashException, ExecError
+from utils import Bash, BashCommands, BashException, ExecError, Rake
 
 
 class Observer:
 
     def __init__(self):
         self.__bash: Bash = Bash()
+        self.__rake: Rake = Rake()
         self.__parser: Parser = Parser()
         self.__old_log: Callable[[float, float, float], bool] = lambda log_time, current_time, delta_time: False if log_time >= (current_time - delta_time) else True
         self.__systemd_logs: List[Dict[str, Union[bool, str, List[str]]]] = []
@@ -60,7 +61,7 @@ class Observer:
             start_time: float = time()
             for service in self.__parser.parse_service_table(self.__bash.run(BashCommands.OPENFIVEGSERVICES.value)):
                 service_logs: List[str] = []
-                for logs in self.__parser.parse_service_logs(self.__bash.run(BashCommands.CTLSERVICELOG.value.format(service_name=service['service']))):
+                for logs in self.__parser.parse_service_logs(self.__rake.rake(service_name=service['service'], net_fun_name=service['name'])):
                     if not delta_time:
                         service_logs.append(logs['message'])
                     elif not self.__old_log(log_time=logs['time_stamp'], current_time=time(), delta_time=delta_time):

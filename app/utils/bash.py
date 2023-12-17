@@ -2,7 +2,7 @@ from subprocess import run, CalledProcessError, CompletedProcess
 from typing import List
 from enum import Enum
 
-from app.utils.exceptions import BashException
+from .exceptions import BashException
 
 
 class BashCommands(Enum):
