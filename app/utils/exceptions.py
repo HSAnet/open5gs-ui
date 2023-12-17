@@ -65,5 +65,19 @@ class ExecError(Exception):
         super().__init__('')
 
 
+# ----------------------------------------------------------------------------------------------------
+
+class NetworkError(Exception):
+    def __init__(self, pcap_msg: str):
+        self.__pcap_msg: str = pcap_msg
+        super(NetworkError, self).__init__('pcap_msg: {}'.format(pcap_msg))
+
+    @property
+    def msg(self) -> str:
+        return f'An error occurred while operating with the network.\nMsg: {self.__pcap_msg}'
+
+# ----------------------------------------------------------------------------------------------------
+
+
 e_print = lambda *args, **kwargs: print(*args, file=sys.stderr, **kwargs)
 
