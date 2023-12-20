@@ -1,11 +1,15 @@
+import ipaddress
 import socket
 import logging
 import ctypes as ct
-from dataclasses import dataclass
+import struct
+import traceback
+from dataclasses import dataclass, field
 from typing import List, Dict, Callable, Tuple, Union
-
+import regex as re
 import libpcap as pcap
 from libpcap._platform import sockaddr_in, sockaddr_in6
+import binascii
 
 from app.utils.exceptions import NetworkError
 
@@ -15,6 +19,7 @@ __NETWORK_DEVICE = None
 err_to_str: Callable[[], str] = lambda: __ERROR_BUFFER.value.decode('utf-8', 'ignore')
 dev_to_str: Callable[[], str] = lambda device: device.decode("utf-8")
 dev_err: Callable[[], str] = lambda device: pcap.geterr(device).decode("utf-8", "ignore")
+public_attr_pattern = re.compile(r'^(?!_)')
 logger = logging.getLogger(__name__)
 
 
@@ -22,24 +27,63 @@ logger = logging.getLogger(__name__)
 class NetDevice:
     name: str
     flags: List[str]
-    addr_families: List[Dict[str, str]]
+    addr_families: List[Dict[str, Union[str, int]]]
+    network_id: Dict[str, Dict[str, int]] = field(init=False)
+
+    def __post_init__(self):
+        self.network_id = self.__network_id_init()
 
     def status(self) -> bool:
         return 'UP' in self.flags and 'RUNNING' in self.flags
+
+    def __network_id_init(self) -> Dict[str, Dict[str, int]]:
+        """
+        This function precalculates network-id and cdir for easy comparison.
+        First it counts the 1s in the binary representation of the network mask - resulting in the cdir.
+        Then it takes the network-ip, then shifts it to the right by either 128 - cdir (IPv6) or 32 - cdir (IPv4).
+        Both values are stored as integer in a dictionary.
+
+                #   0b11000000101010000011100000000011
+                # &	0b11111111111111111111111100000000
+                #   ----------------------------------
+                # 	0b11000000101010000011100000000000
+                #
+                #   Shift to right by 32 - cdir_mask
+                # 	0b110000001010100000111000   -> IPv4-Network-ID
+
+        :return: Dictionary containing integer-representations of network-id and cdir (192.168.1/24)
+        """
+        ret_value = {'IPv4': {'id': 0, 'cdir': 0}, 'IPv6': {'id': 0, 'cdir': 0}}
+        for family in self.addr_families:
+            if family['type'] == 'IPv6':
+                ret_value['IPv6']['cdir'] = bin(family['mask_int']).count('1')
+                ret_value['IPv6']['id'] = (family['addr_int']) >> (128 - ret_value['IPv6']['cdir'])
+            else:
+                ret_value['IPv4']['cdir'] = bin(family['mask_int']).count('1')
+                ret_value['IPv4']['id'] = (family['addr_int']) >> (32 - ret_value['IPv4']['cdir'])
+        return ret_value
+
+    def in_ip_range(self, ip_addr: str) -> bool:
+        if ':' in ip_addr:
+            return self.network_id['IPv6']['id'] == (int.from_bytes(socket.inet_pton(socket.AF_INET6, ip_addr), byteorder='big') >> (128 - self.network_id['IPv6']['cdir']))
+        else:
+            return self.network_id['IPv4']['id'] == (int.from_bytes(socket.inet_aton(ip_addr), byteorder='big') >> (32 - self.network_id['IPv4']['cdir']))
 
     def __str__(self) -> str:
         return (f"{self.name}\n"
                 f"{'Flags':>4}: {' '.join(self.flags)}\n"
                 f"{''.join([f"\tAddress Family: {'unknown' if 'type' not in fam else fam['type']}\n"
                             f"\t\tAddress: {'' if 'addr' not in fam else fam['addr']}\n"
-                            f"\t\tNetmask: {'' if 'mask' not in fam else fam['mask']}\n" 
+                            f"\t\tNetmask: {'' if 'mask' not in fam else fam['mask']}\n"
                             for fam in self.addr_families])}")
 
 
-def setup_sniffer(device_name: str, bpf_filter: Union[None, List[str]] = None) -> Tuple[pcap.pcap_if, pcap.bpf_program]:
-    if device_name not in [device.name for device in __find_all_network_devices() if device.status()]:
-        # Check if provided network-adapter is known to system and accessible
-        logger.error(err_msg := f'Device: {device_name} not found!')
+def setup_sniffer(device_name: str, bpf_filter: Union[None, List[str]] = None) -> Tuple[NetDevice, pcap.pcap_if, pcap.bpf_program]:
+    try:
+        device: NetDevice = [dev for dev in __find_all_network_devices()
+                             if dev.status() and dev.name == device_name][0]
+    except ValueError:
+        logger.error(err_msg := f'Device: {device_name} not found or active!')
         raise NetworkError(err_msg)
 
     snapshot_len: int = 262444  # tcpdump default
@@ -119,49 +163,77 @@ def setup_sniffer(device_name: str, bpf_filter: Union[None, List[str]] = None) -
             activate_device()
             net_addr, net_mask = get_dev_add_and_mask()
             create_capture_filter((f_code := pcap.bpf_program()), [''] if not bpf_filter else bpf_filter, net_mask)
-
-
-
-            while True:
-                print('in loop')
-                packet_count = ct.c_int(0)
-                print('link created')
-                status = pcap.dispatch(network_device, -1, capture_packet,
-                                       ct.cast(ct.pointer(packet_count), ct.POINTER(ct.c_ubyte)))
-                print('funciton returned')
-                if status < 0:
-                    print('status < ß')
-                    break
-                if status != 0:
-                    print(f'Status: {status}')
-                    pass  # returnValue
-                    # print(f'{status} packages seen, {packet_count.value} packets counted after ')
-
-            if status <= -1:
-                print('hello')
-                logger.critical(f'Network sniffer encountered critical error!\n{dev_err(device)}')
-
-
-
-            return network_device, f_code
-        finally:
+        except NetworkError as n_err:
             if 'f_code' in locals():
                 pcap.freecode(ct.byref(f_code))
             pcap.close(network_device)
+        return device, network_device, f_code
 
 
-def sniff_on_network(device, f_code: pcap.bpf_program):
-    pass
+class PacketData(ct.Structure):
+    _fields_ = [
+        ('pkg_type', ct.c_int),
+        ('dst_addr', ct.c_char_p),
+        ('src_addr', ct.c_char_p),
+        ('pkg_size', ct.c_int)
+    ]
+
+
+def sniff_on_network(device: NetDevice, pcap_device, f_code: pcap.bpf_program):
+    # Todo: Need a queue here and stuff package data into it
+    try:
+        while True:
+            packet_data = PacketData()
+            status = pcap.dispatch(pcap_device, -1, __capture_packet, ct.cast(ct.pointer(packet_data), ct.POINTER(ct.c_ubyte)))
+            if status < 0:
+                break
+            if status != 0:
+                # In case of a timeout the struct members might be null
+                # If new member is added to PacketData, it must be filled with value!!
+                call_member = lambda m_str: getattr(packet_data, m_str)
+                if not any(el is None for el in [call_member(member) for member in dir(packet_data) if public_attr_pattern.search(member)]):
+                    # It is certain that all members are set!
+                    # We need to check source and destination and need to define if it is upload or download
+                    entry = {'ip to ip': {'src_addr': '', 'dst_addr': '', 'total_size': 0}}
+                    print(device.in_ip_range(packet_data.src_addr.decode('utf-8')))
+                    print(device)
+                    print(f'Source: {packet_data.src_addr.decode('utf-8')}\tDestination: '
+                          f'{packet_data.dst_addr.decode('utf-8')}\tPkgSize: '
+                          f'{packet_data.pkg_size}')
+                    del packet_data
+        if status <= pcap.PCAP_ERROR:
+            logger.critical(f'Network sniffer encountered critical error!\n{dev_err(device)}')
+    except:
+        logger.critical(traceback.print_exc())
+    finally:
+        pcap.freecode(ct.byref(f_code))
+        pcap.close(device)
 
 
 @pcap.pcap_handler
-def capture_packet(usr, header, packet):
-    counterp = ct.cast(usr, ct.POINTER(ct.c_int))
-    counterp[0] += 1
+def __capture_packet(usr, header, packet):
+    packet_data = ct.cast(usr, ct.POINTER(PacketData))
+
+    try:
+        _, ether_type = struct.unpack('!12sH', bytes(packet[:14]))
+        ip_packet: bytes = bytes(packet[14:header.contents.caplen])
+    except struct.error:
+        # Todo none ETH10MB Packet caught -- ignore!
+        return
+    if header.contents.caplen >= 14:
+        if ether_type == socket.ETHERTYPE_IP:
+            packet_data.contents.pkg_type = socket.ETHERTYPE_IP
+            _, _, src_addr, dst_addr = struct.unpack_from('>QLII', ip_packet)
+        elif ether_type == socket.ETHERTYPE_IPV6:
+            packet_data.contents.pkg_type = socket.ETHERTYPE_IPV6
+            _, src_addr, dst_addr = struct.unpack_from('>Q16s16s', ip_packet)
+        if {'src_addr', 'dst_addr'} <= set(locals().keys()):
+            packet_data.contents.src_addr = ct.string_at(str(ipaddress.ip_address(src_addr)).encode('utf-8'))
+            packet_data.contents.dst_addr = ct.string_at(str(ipaddress.ip_address(dst_addr)).encode('utf-8'))
+            packet_data.contents.pkg_size = header.contents.len
 
 
 def __find_all_network_devices() -> List[NetDevice]:
-
     def get_device_flags(device: pcap.pcap_if) -> List[str]:
         flags: List[str] = []
         if device.flags & pcap.PCAP_IF_UP:
@@ -209,8 +281,10 @@ def __find_all_network_devices() -> List[NetDevice]:
                     family['type'] = 'IPv4'
                     if addr:
                         family['addr'] = socket.inet_ntop(socket.AF_INET, ct.cast(addr, ct.POINTER(sockaddr_in)).contents.sin_addr)
+                        family['addr_int'] = int.from_bytes(ct.cast(addr, ct.POINTER(sockaddr_in)).contents.sin_addr, byteorder='big')
                     if netmask:
                         family['mask'] = socket.inet_ntop(socket.AF_INET, ct.cast(netmask, ct.POINTER(sockaddr_in)).contents.sin_addr)
+                        family['mask_int'] = int.from_bytes(ct.cast(netmask, ct.POINTER(sockaddr_in)).contents.sin_addr, byteorder='big')
                     if broad_addr:
                         family['broad_addr'] = socket.inet_ntop(socket.AF_INET, ct.cast(broad_addr, ct.POINTER(sockaddr_in)).contents.sin_addr)
                     if dst_addr:
@@ -220,8 +294,10 @@ def __find_all_network_devices() -> List[NetDevice]:
                     family['type'] = 'IPv6'
                     if addr:
                         family['addr'] = socket.inet_ntop(socket.AF_INET6, ct.cast(addr, ct.POINTER(sockaddr_in6)).contents.sin6_addr.s6_addr)
+                        family['addr_int'] = int.from_bytes(ct.cast(addr, ct.POINTER(sockaddr_in6)).contents.sin6_addr.s6_addr, byteorder='big')
                     if netmask:
                         family['mask'] = socket.inet_ntop(socket.AF_INET6, ct.cast(netmask, ct.POINTER(sockaddr_in6)).contents.sin6_addr.s6_addr)
+                        family['mask_int'] = int.from_bytes(ct.cast(netmask, ct.POINTER(sockaddr_in6)).contents.sin6_addr.s6_addr, byteorder='big')
                     if broad_addr:
                         family['broad_addr'] = socket.inet_ntop(socket.AF_INET6, ct.cast(broad_addr, ct.POINTER(sockaddr_in6)).contents.sin6_addr.s6_addr)
                     if dst_addr:
@@ -245,7 +321,6 @@ def __find_all_network_devices() -> List[NetDevice]:
         raise NetworkError(err_to_str())
         pass
     return device_list
-
 
 
 if __name__ == '__main__':
