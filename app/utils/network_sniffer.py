@@ -1,15 +1,18 @@
-import ipaddress
+import struct
 import socket
 import logging
-import ctypes as ct
-import struct
 import traceback
-from dataclasses import dataclass, field
-from typing import List, Dict, Callable, Tuple, Union
+import ipaddress
+from functools import partial
+
 import regex as re
 import libpcap as pcap
+import ctypes as ct
+from dataclasses import dataclass, field
+from typing import List, Dict, Callable, Tuple, Union
 from libpcap._platform import sockaddr_in, sockaddr_in6
-import binascii
+import pandas as pd
+from multiprocessing import Manager, Process
 
 from app.utils.exceptions import NetworkError
 
@@ -64,6 +67,13 @@ class NetDevice:
         return ret_value
 
     def in_ip_range(self, ip_addr: str) -> bool:
+        """
+        Method converts provided ip_addr respectively to integer representation and shifts it to the right to compare
+        it to the network-id. If they match, true is returned, else false.
+
+        :param ip_addr: The IP Address to be checked
+        :return: True if IP Address in network, else false
+        """
         if ':' in ip_addr:
             return self.network_id['IPv6']['id'] == (int.from_bytes(socket.inet_pton(socket.AF_INET6, ip_addr), byteorder='big') >> (128 - self.network_id['IPv6']['cdir']))
         else:
@@ -78,7 +88,7 @@ class NetDevice:
                             for fam in self.addr_families])}")
 
 
-def setup_sniffer(device_name: str, bpf_filter: Union[None, List[str]] = None) -> Tuple[NetDevice, pcap.pcap_if, pcap.bpf_program]:
+def __setup_sniffer(device_name: str, bpf_filter: Union[None, List[str]] = None) -> Tuple[NetDevice, pcap.pcap_if, pcap.bpf_program]:
     try:
         device: NetDevice = [dev for dev in __find_all_network_devices()
                              if dev.status() and dev.name == device_name][0]
@@ -179,8 +189,14 @@ class PacketData(ct.Structure):
     ]
 
 
-def sniff_on_network(device: NetDevice, pcap_device, f_code: pcap.bpf_program):
-    # Todo: Need a queue here and stuff package data into it
+def __sniff_on_network(queue, device: NetDevice, pcap_device, f_code: pcap.bpf_program):
+    def new_entry(src, dst, size):
+        return {
+            'src_addr': src.decode('utf-8'),
+            'dst_addr': dst.decode('utf-8'),
+            'size': size,
+            'type': 'UPLOAD' if device.in_ip_range(src.decode('utf-8')) else 'DOWNLOAD'
+        }
     try:
         while True:
             packet_data = PacketData()
@@ -189,17 +205,10 @@ def sniff_on_network(device: NetDevice, pcap_device, f_code: pcap.bpf_program):
                 break
             if status != 0:
                 # In case of a timeout the struct members might be null
-                # If new member is added to PacketData, it must be filled with value!!
                 call_member = lambda m_str: getattr(packet_data, m_str)
-                if not any(el is None for el in [call_member(member) for member in dir(packet_data) if public_attr_pattern.search(member)]):
-                    # It is certain that all members are set!
-                    # We need to check source and destination and need to define if it is upload or download
-                    entry = {'ip to ip': {'src_addr': '', 'dst_addr': '', 'total_size': 0}}
-                    print(device.in_ip_range(packet_data.src_addr.decode('utf-8')))
-                    print(device)
-                    print(f'Source: {packet_data.src_addr.decode('utf-8')}\tDestination: '
-                          f'{packet_data.dst_addr.decode('utf-8')}\tPkgSize: '
-                          f'{packet_data.pkg_size}')
+                if not any(el is None for el in [call_member(member) for member in dir(packet_data) if public_attr_pattern.search(member)]):                
+                    # Assert - all members set!
+                    queue.put(new_entry(src=packet_data.src_addr, dst=packet_data.dst_addr, size=packet_data.pkg_size))
                     del packet_data
         if status <= pcap.PCAP_ERROR:
             logger.critical(f'Network sniffer encountered critical error!\n{dev_err(device)}')
@@ -207,7 +216,8 @@ def sniff_on_network(device: NetDevice, pcap_device, f_code: pcap.bpf_program):
         logger.critical(traceback.print_exc())
     finally:
         pcap.freecode(ct.byref(f_code))
-        pcap.close(device)
+        pcap.close(pcap_device)
+        exit()
 
 
 @pcap.pcap_handler
@@ -323,8 +333,41 @@ def __find_all_network_devices() -> List[NetDevice]:
     return device_list
 
 
-if __name__ == '__main__':
+def sniff(device_name: str, delay: int = 1):
+    """
+    Collects network-data from provided device and returns data in delay-time
+
+    :raises NetworkError if error occurred while sniffing
+    :param device_name: The network-device name (e.g. ogstun)
+    :param delay: Delay in seconds before return
+    :return:
+    """
+    manager = Manager()
+    p_queue = manager.Queue()
+    net_dev, pcap_dev, bpf_filer = __setup_sniffer(device_name=device_name)
+    network_sniffer: Process = Process(target=__sniff_on_network, args=(p_queue, net_dev, pcap_dev, bpf_filer))
     try:
-        sniff_on_network(*setup_sniffer('enp0s3'))
-    except NetworkError as err:
-        print(err)
+        network_sniffer.start()
+        while True:
+            yield p_queue.get()
+    except:
+        # Todo: Error handling
+        raise NetworkError('')
+    finally:
+        network_sniffer.terminate()
+        p_queue.join()
+
+
+if __name__ == '__main__':
+    flush_rows = lambda frame: frame.drop(frame.index, inplace=True)
+    append_row = lambda frame, row: pd.concat([frame, pd.DataFrame([row], columns=row.index)]).reset_index(drop=True)
+
+    df = pd.DataFrame(columns=['src_addr', 'dst_addr', 'size', 'type'])
+    for packet_data in sniff('enp0s3'):
+        df = append_row(df, pd.Series(packet_data))
+        #grouped = df['size'].groupby(df['src_addr'], df['dst_addr'], df['type']).size()
+        grouped = df.groupby(['src_addr', 'dst_addr', 'type'], as_index=False)['size'].sum()
+        print(grouped.tail(15))
+        print()
+        print()
+        print()
