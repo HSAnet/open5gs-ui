@@ -4,6 +4,8 @@ import traceback
 from typing import Generator, List, Union, Dict
 from multiprocessing import Process, Queue
 import logging
+from datetime import datetime
+from packet_parser import parse_packet
 
 import libpcap as pcap
 
@@ -47,8 +49,10 @@ def iter_all_devs():
 
 class PacketData(ct.Structure):
     _fields_ = [
-        ('hdr', ct.c_char_p),
-        ('pkg', ct.c_char_p)
+        ('ts', ct.c_longlong),
+        ('cap_len', ct.c_uint),
+        ('len', ct.c_uint),
+        ('pkg', ct.POINTER(ct.c_ubyte))
     ]
 
 
@@ -58,16 +62,23 @@ def __capture(q_in: Queue, q_out: Queue, net_dev: NetworkDevice):
 
     while True:
         packet_data = PacketData()
-        print('Start dispactch')
-        try:
-            status = pcap.dispatch(net_dev.pcap_device, -1, __packet_handler, ct.cast(ct.pointer(packet_data), ct.POINTER(ct.c_ubyte)))
-        except:
-            print(traceback.print_exc())
-        print('Dispatch finished')
+        status = pcap.dispatch(net_dev.pcap_device, -1, __packet_handler, ct.cast(ct.pointer(packet_data), ct.POINTER(ct.c_ubyte)))
         if status < 0:
             break
         if status != 0:
-            q_in.put({'hdr': packet_data.contents.hdr, 'pkg': packet_data.contents.pkg})
+            # Todo remove try catch, only used for debugging purpose
+            try:
+                q_in.put({
+                    'hdr': {
+                        'ts': packet_data.ts,
+                        'cap_len': packet_data.cap_len,
+                        'len': packet_data.len
+                    },
+                    'pkg': bytes(packet_data.pkg[:packet_data.cap_len])
+                })
+            except:
+                print(traceback.print_exc())
+            del packet_data
     if status <= pcap.PCAP_ERROR:
         _pcap_logger.critical(f'Network sniffer encountered critical error!\n{dev_err(net_dev)}')
 
@@ -75,25 +86,27 @@ def __capture(q_in: Queue, q_out: Queue, net_dev: NetworkDevice):
 @pcap.pcap_handler
 def __packet_handler(usr, header, packet):
     packet_data = ct.cast(usr, ct.POINTER(PacketData))
-    packet_data.contents.hdr = header
+    packet_data.contents.ts = header.contents.ts.tv_sec
+    packet_data.contents.cap_len = header.contents.caplen
+    packet_data.contents.len = header.contents.len
     packet_data.contents.pkg = packet
-    print(packet)
 
 
 def __packet_parser(q_in: Queue, q_out: Queue, net_dev: NetworkDevice):
     while True:
-        pkg_data: Dict[str, bytes] = q_in.get()
-        packet = pkg_data['pkg']
-        header = pkg_data['hdr']
         try:
+            pkg_data: Dict[str, Union[Dict[str, Union[bytes, int]], bytes]] = q_in.get()
+            packet: bytes = pkg_data['pkg']
+            header: Dict[str, Union[bytes, int]] = pkg_data['hdr']
+            # print(f'{datetime.fromtimestamp(header['ts'])} -> len: {header["len"]}')
+            parse_packet(packet)
             _, ether_type = struct.unpack('!12sH', bytes(packet[:14]))
-            ip_packet: bytes = bytes(packet[14:header.contents.caplen])
-            print(ip_packet)
+            ip_packet: bytes = bytes(packet[14:header['cap_len']])
         except struct.error:
             # Todo none ETH10MB Packet caught -- ignore!
             pass
         except:
-            print('Unexpected Error')
+            print(traceback.print_exc())
 
         del pkg_data
 
