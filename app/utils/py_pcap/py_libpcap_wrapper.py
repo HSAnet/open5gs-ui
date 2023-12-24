@@ -112,6 +112,12 @@ def __packet_parser(q_in: Queue, q_out: Queue, net_dev: NetworkDevice):
 
 
 def capture(device_name: str, bpf_filter: List[str]):
+    """
+    :raises NetworkError: If further processing not possible due to network-error
+    :param device_name: The name of the device to capture as string
+    :param bpf_filter: The bpf-filter as list of strings
+    :return: todo
+    """
 
     def cleanup(net_device: Union[NetworkDevice, None], process: Union[Process, None]):
         if net_device and net_dev.bpf_program:
@@ -122,13 +128,7 @@ def capture(device_name: str, bpf_filter: List[str]):
             process.terminate()
             process.join()
             process.close()
-    """
 
-    :raises NetworkError: If further processing not possible due to network-error
-    :param device_name: The name of the device to capture as string
-    :param bpf_filter: The bpf-filter as list of strings
-    :return: todo
-    """
     try:
         net_dev: NetworkDevice = [dev for dev in find_all_devs() if dev.name == device_name][0]
         if not net_dev.ready():
