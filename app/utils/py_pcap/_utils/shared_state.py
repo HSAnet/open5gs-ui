@@ -6,6 +6,7 @@ class Flags(Enum):
     FLAG_GET = 1
     FLAG_PUT = 2
     FLAG_NONE = 0
+    FLAG_ERROR = -1
 
 
 class LibpcapShare:

@@ -5,7 +5,7 @@ from typing import Callable, Union, List, Dict
 
 import libpcap as pcap
 
-from exceptions import NetworkError, SetupError, err_to_str, dev_err
+from .pcap_exceptions import NetworkError, SetupError, err_to_str, dev_err
 import logging
 
 
