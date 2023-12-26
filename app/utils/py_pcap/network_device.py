@@ -1,6 +1,6 @@
-import ctypes as ct
 import socket
 import struct
+import ctypes as ct
 from typing import Callable, Union, List, Dict
 
 import libpcap as pcap
@@ -13,6 +13,7 @@ bytes_to_int: Callable[[bytes], int] = lambda b: int.from_bytes(b, byteorder='bi
 bytes_to_ip: Callable[[int], str] = lambda b: socket.inet_ntop(socket.AF_INET6, b) if len(b) > 4 else socket.inet_ntop(socket.AF_INET, b)
 str_to_bytes: Callable[[str], bytes] = lambda s: s.encode('utf-8')
 dev_to_str: Callable[[], str] = lambda device: device.decode("utf-8")
+
 
 class NetworkDevice:
 
