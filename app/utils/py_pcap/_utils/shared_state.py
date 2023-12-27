@@ -2,11 +2,11 @@ import mmap
 from enum import Enum
 
 
-class Flags(Enum):
+class SharedFlags(Enum):
     FLAG_GET = 1
     FLAG_PUT = 2
     FLAG_NONE = 0
-    FLAG_ERROR = -1
+    FLAG_ERROR = 3
 
 
 class LibpcapShare:
@@ -18,7 +18,7 @@ class LibpcapShare:
             cls._instance.__sh_mem = mmap.mmap(-1, 1)
         return cls._instance
 
-    def write(self, flag: Flags) -> None:
+    def write(self, flag: SharedFlags) -> None:
         self.__sh_mem.seek(0)
         self.__sh_mem.write_byte(flag.value)
 

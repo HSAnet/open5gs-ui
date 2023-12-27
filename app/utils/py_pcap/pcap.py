@@ -1,4 +1,3 @@
-import logging
 import time
 import traceback
 import ctypes as ct
@@ -7,24 +6,16 @@ from multiprocessing import Process, Queue
 from typing import Generator, List, Union, Dict
 
 import pandas as pd
-
-import _utils as utils
-from ._core import parse_packet
-from ._utils import LibpcapShare, NetworkError, SetupError, CaptureError, err_to_str, dev_to_str, dev_err
-
-
-from packet_parser import parse_packet, PKG_COLUMNS
-
 import libpcap as pcap
 
-from libpcap_share import LibpcapShare, Flags
-from exceptions import NetworkError, SetupError, CaptureError, err_to_str, dev_err
-from network_device import NetworkDevice
+from ._core import parse_packet
+from ._utils import (LibpcapShare, SharedFlags,
+                     NetworkError, SetupError, err_to_str, dev_err,
+                     NetworkDevice,
+                     Capture, Packet)
 
-_pcap_logger = logging.getLogger(__name__)
-_shared_state = LibpcapShare()
+_shared_mem: LibpcapShare = LibpcapShare()
 
-CLM_D_TYPES = [pd.StringDtype(), 'Int64', pd.StringDtype(), pd.StringDtype(), pd.StringDtype(), pd.StringDtype(), 'Int64', pd.StringDtype(), 'Int64', pd.StringDtype(), pd.StringDtype(), 'Int64']
 
 def __get_network_device() -> Generator[NetworkDevice, None, None]:
     sys_net_devices: ct.POINTER = ct.POINTER(pcap.pcap_if_t)()
@@ -67,23 +58,7 @@ class PacketData(ct.Structure):
     ]
 
 
-class _Capture:
-
-    def __init__(self):
-        self.__queue: Queue = Queue(-1)
-
-    def get(self):
-        _shared_state.write(Flags.FLAG_GET)
-        while _shared_state.read() != Flags.FLAG_PUT.value:
-            pass
-        _shared_state.write(Flags.FLAG_NONE)
-        return self.__queue.get()
-
-    def put(self, data):
-        self.__queue.put(data)
-
-
-def __capture(q_in: Queue, c_obj: _Capture, net_dev: NetworkDevice):
+def __capture(q_in: Queue, c_obj: Capture, net_dev: NetworkDevice):
     parse_proc: Process = Process(target=__packet_parser, args=(q_in, c_obj, net_dev))
     parse_proc.start()
 
@@ -93,21 +68,20 @@ def __capture(q_in: Queue, c_obj: _Capture, net_dev: NetworkDevice):
         if status < 0:
             break
         if status != 0:
-            # Todo remove try catch, only used for debugging purpose
-            try:
-                q_in.put({
-                    'hdr': {
-                        'ts': packet_data.ts,
-                        'cap_len': packet_data.cap_len,
-                        'len': packet_data.len
-                    },
-                    'pkg': bytes(packet_data.pkg[:packet_data.cap_len])
-                })
-            except:
-                print(traceback.print_exc())
+            q_in.put({
+                'hdr': {
+                    'ts': packet_data.ts,
+                    'cap_len': packet_data.cap_len,
+                    'len': packet_data.len
+                },
+                'pkg': bytes(packet_data.pkg[:packet_data.cap_len])
+            })
             del packet_data
     if status <= pcap.PCAP_ERROR:
-        _pcap_logger.critical(f'Network sniffer encountered critical error!\n{dev_err(net_dev)}')
+        parse_proc.terminate()
+        parse_proc.join()
+        parse_proc.close()
+        raise NetworkError(f'Network sniffer encountered critical error!\n{dev_err(net_dev)}')
 
 
 @pcap.pcap_handler
@@ -119,41 +93,46 @@ def __packet_handler(usr, header, packet):
     packet_data.contents.pkg = packet
 
 
-def __packet_parser(q_in: Queue, c_obj: _Capture, net_dev: NetworkDevice):
-    packet_lst: List[List[Union[str, int, None]]] = []
-
+def __packet_parser(q_in: Queue, c_obj: Capture, net_dev: NetworkDevice):
+    packet_lst = [[] for _ in range(len(Packet.__members__))]
     while True:
         try:
             pkg_data: Dict[str, Union[Dict[str, Union[bytes, int]], bytes]] = q_in.get()
             packet: bytes = pkg_data['pkg']
             header: Dict[str, Union[bytes, int]] = pkg_data['hdr']
-            packet_data = parse_packet(packet)
-            if not packet_data:
-                continue
-            packet_data[PKG_COLUMNS.index('TimeStamp')] = datetime.fromtimestamp(header['ts'])
-            # Define Up/Download
-            x = [net_dev.comp_net_id(ip) for ip in [packet_data[5], packet_data[7]]].index(True)
-            packet_data[PKG_COLUMNS.index('Direction')] = 'UP' if x == 0 else 'Down' if x == 1 else ''
-            packet_data[PKG_COLUMNS.index('Size')] = header['len']
-            packet_lst.append(packet_data)
-            if _shared_state.read() == Flags.FLAG_GET.value:
-                dc = dict()
-                for col_idx, col_name in enumerate(PKG_COLUMNS):
-                    lst = []
-                    for pkg_idx in range(len(packet_lst)):
-                        lst.append(packet_lst[pkg_idx][col_idx])
-                    dc[col_name] = pd.Series(data=lst, dtype=CLM_D_TYPES[col_idx])
-                c_obj.put(pd.DataFrame(dc))
-                _shared_state.write(Flags.FLAG_PUT)
-                packet_lst = []
-        except CaptureError as ce:
-            _pcap_logger.info(ce.msg)
+
+            ex_data: List[Union[str, int, None, datetime]] = [None for _ in range(len(Packet.__members__))]
+            parse_packet(packet, ex_data)
+            if not all(entry is None for entry in ex_data):
+                # Adding Timestamp / Size / Direction (Up-/Download)
+                ex_data[Packet.TIMESTAMP.value] = datetime.fromtimestamp(header['ts'])
+                ex_data[Packet.SIZE.value] = header['len']
+                direction: int = [net_dev.comp_net_id(ip) for ip in [ex_data[Packet.SOURCE_IP.value], ex_data[Packet.DESTINATION_IP.value]]].index(True)
+                ex_data[Packet.DIRECTION.value] = 'UP' if direction == 0 else 'Down' if direction == 1 else ''
+                # convert horizontal to vertical list
+                for idx, etr in enumerate(ex_data):
+                    packet_lst[idx].append(etr)
+            # Gets executed when get is called on Capture-Object
+            if _shared_mem.read() == SharedFlags.FLAG_GET.value:
+                c_obj.put(pd.DataFrame({col.name.capitalize(): pd.Series(data=packet_lst[index], dtype=col.d_type) for
+                                        index, col in enumerate(Packet)}))
+                # write dataframe to queue
+                _shared_mem.write(SharedFlags.FLAG_PUT)
+                packet_lst = [[] for _ in range(len(Packet.__members__))]
         except ValueError:
-            _pcap_logger.info(f'Could not define Up/Download for package {packet_data}')
+            # Up/Download could not be defined - Further processing impossible
+            pass
         except KeyboardInterrupt:
+            # End process
+            _shared_mem.close()
             return
         except:
-            _pcap_logger.warning(traceback.print_exc())
+            # Severe unexpected Error!
+            # Write Error to queue and end process.
+            _shared_mem.write(SharedFlags.FLAG_ERROR)
+            c_obj.put(traceback.format_exc())
+            _shared_mem.close()
+            return
         del pkg_data
 
 
@@ -162,7 +141,7 @@ def capture(device_name: str, bpf_filter: List[str]):
     :raises NetworkError: If further processing not possible due to network-error
     :param device_name: The name of the device to capture as string
     :param bpf_filter: The bpf-filter as list of strings
-    :return: todo
+    :return: Capture obj
     """
 
     def cleanup(net_device: Union[NetworkDevice, None], process: Union[Process, None]):
@@ -181,7 +160,7 @@ def capture(device_name: str, bpf_filter: List[str]):
             raise NetworkError(f'Device "{device_name}" not ready for network capturing')
         else:
             net_dev.setup([''] if not bpf_filter else bpf_filter)
-            capture_obj: _Capture = _Capture()
+            capture_obj: Capture = Capture(_shared_mem)
             cap_proc: Process = Process(target=__capture, args=(Queue(-1), capture_obj, net_dev))
             cap_proc.start()
             return capture_obj
@@ -190,22 +169,8 @@ def capture(device_name: str, bpf_filter: List[str]):
     except SetupError as se:
         cleanup(None if 'net_dev' not in locals() else net_dev, None if 'cap_proc' not in locals() else cap_proc)
         raise NetworkError(f'Error occurred during device setup!\n{se.msg}')
-    except CaptureError as ce:
-        cleanup(None if 'net_dev' not in locals() else net_dev)
-        raise NetworkError(f'Error occurred during packet capturing!\n{ce.msg}')
-    except:
-        print('Unexpected Error ')
-
-
-if __name__ == '__main__':
-    # dev = find_all_devs()[0]
-    pd.set_option('display.max_columns', 500)
-    pd.set_option('display.width', 2000)
-    try:
-        c_obj: _Capture = capture('enp0s3', [])
-        while True:
-            time.sleep(5)
-            print(c_obj.get())
-            #print(c_obj.get().head(20))
     except NetworkError as ne:
-        print(ne)
+        cleanup(None if 'net_dev' not in locals() else net_dev)
+        _shared_mem.write(SharedFlags.FLAG_ERROR)
+        if 'capture_obj' in locals():
+            capture_obj.put(f'Error occurred during packet capturing!\n{ne.msg}')

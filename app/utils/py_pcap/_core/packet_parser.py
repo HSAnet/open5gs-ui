@@ -50,9 +50,9 @@ def __parse_ethernet_frame(data: bytes, ref: np.array) -> None:
     :return: dst-MAC (str), src-MAC (str), EtherType (int)
     """
     dst_mac, src_mac, eth_type = struct.unpack_from('>6s6sH', data)
-    ref[Packet.ETHERTYPE.index] = eth_type
-    ref[Packet.SOURCE_MAC.index] = bytes_to_mac(src_mac)
-    ref[Packet.DESTINATION_MAC.index] = bytes_to_mac(dst_mac)
+    ref[Packet.ETHERTYPE.value] = eth_type
+    ref[Packet.SOURCE_MAC.value] = bytes_to_mac(src_mac)
+    ref[Packet.DESTINATION_MAC.value] = bytes_to_mac(dst_mac)
 
 
 def __parse_ip_packet(data: bytes, ref: np.array) -> None:
@@ -74,10 +74,10 @@ def __parse_ip_packet(data: bytes, ref: np.array) -> None:
     # 15 is dec for 0xf but doesn't need to be converted
     ip_header_len = ((v_ihl & 15) * 32) // 8
     src_port, dst_port = parse_ports(data[ip_header_len:])
-    ref[Packet.SOURCE_IP.index] = bytes_to_ip(src_ip)
-    ref[Packet.SOURCE_PORT.index] = src_port
-    ref[Packet.DESTINATION_IP.index] = bytes_to_ip(dst_ip)
-    ref[Packet.DESTINATION_PORT.index] = dst_port
+    ref[Packet.SOURCE_IP.value] = bytes_to_ip(src_ip)
+    ref[Packet.SOURCE_PORT.value] = src_port
+    ref[Packet.DESTINATION_IP.value] = bytes_to_ip(dst_ip)
+    ref[Packet.DESTINATION_PORT.value] = dst_port
 
 
 def __parse_ipv6_packet(data: bytes, ref: np.array) -> None:
@@ -93,10 +93,10 @@ def __parse_ipv6_packet(data: bytes, ref: np.array) -> None:
     """
     vtfl, payload_len, nxt_head, hop_lmt, src_ip, dst_ip = struct.unpack_from(bld_str_fmt([32, 16, 8, 8, 128, 128]), data)
     src_port, dst_port = parse_ports(data[40:])
-    ref[Packet.SOURCE_IP.index] = bytes_to_ip(src_ip)
-    ref[Packet.SOURCE_PORT.index] = src_port
-    ref[Packet.DESTINATION_IP.index] = bytes_to_ip(dst_ip)
-    ref[Packet.DESTINATION_PORT.index] = dst_port
+    ref[Packet.SOURCE_IP.value] = bytes_to_ip(src_ip)
+    ref[Packet.SOURCE_PORT.value] = src_port
+    ref[Packet.DESTINATION_IP.value] = bytes_to_ip(dst_ip)
+    ref[Packet.DESTINATION_PORT.value] = dst_port
 
 
 def __parse_arp_packet(data: bytes, ref: np.array) -> None:
@@ -118,10 +118,10 @@ def __parse_arp_packet(data: bytes, ref: np.array) -> None:
     hw_type, prot_type, hw_addr_len, prot_addr_len, op = struct.unpack_from(bld_str_fmt([16, 16, 8, 8, 16]), data[:9])
     packet_bits: List[int] = [hw_addr_len * 8, prot_addr_len * 8, hw_addr_len * 8, prot_addr_len * 8]
     send_mac, send_ip, rec_mac, rec_ip = struct.unpack_from(bld_str_fmt(packet_bits), data[8:])
-    ref[Packet.PROT_TYPE.index] = prot_type
-    ref[Packet.OPERATION.index] = op
-    ref[Packet.SOURCE_IP.index] = bytes_to_ip(send_ip)
-    ref[Packet.DESTINATION_IP.index] = bytes_to_ip(rec_ip)
+    ref[Packet.PROT_TYPE.value] = prot_type
+    ref[Packet.OPERATION.value] = op
+    ref[Packet.SOURCE_IP.value] = bytes_to_ip(send_ip)
+    ref[Packet.DESTINATION_IP.value] = bytes_to_ip(rec_ip)
 
 
 def __parse_vlan_packet(data: bytes, ref: np.array) -> None:
@@ -138,7 +138,7 @@ def parse_packet(packet_data: bytes, ex_packet_data: List[Union[str, int, None]]
     try:
         __parse_ethernet_frame(packet_data, ex_packet_data)
         eth_type_str = [key.rsplit('_')[-1].lower() for key, value in socket_eth_types.items() if
-                        ex_packet_data[Packet.ETHERTYPE.index] == value][0]
+                        ex_packet_data[Packet.ETHERTYPE.value] == value][0]
         globals()[f'__parse_{eth_type_str}_packet'](packet_data[14:], ex_packet_data)
     except (struct.error, IndexError):
         # IndexError occurs when EtherType not supported
