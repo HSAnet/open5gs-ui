@@ -517,6 +517,84 @@ assess whether the source or destination IP address of the packet belongs to the
          ex_data[Packet.DIRECTION.value] = 'UP' if direction == 0 else 'Down' if direction == 1 else ''
 
 
+Interprocess communication
+--------------------------
+
+Multiple approaches can be employed to establish inter-process communication (IPC) in Python. However, allocating a
+random byte in memory using ``mmap`` and writing predefined Flag values into it proves to be the most efficient method
+for exchanging small amounts of data. Consequently, the following Enum is utilized to represent these Flag values.
+
+.. code-block:: python
+
+   class SharedFlags(Enum):
+    FLAG_GET = 1
+    FLAG_PUT = 2
+    FLAG_NONE = 0
+    FLAG_ERROR = 3
+
+To ensure that writing and reading operations are always performed on the same designated byte, the code snippet
+employs the Singleton design pattern. The ``__new__()`` method is invoked whenever the class is instantiated, and since
+the ``_instance`` variable is initialized only on the first iteration, the same instance is returned consistently.
+Additionally, mmap's ``write_byte()/read_byte()`` operations modify the memory address, necessitating their reset before
+subsequent reading or writing activities on the same byte.
+
+.. code-block:: python
+
+   class LibpcapShare:
+      _instance = None
+
+   def __new__(cls):
+      if cls._instance is None:
+         cls._instance = super(LibpcapShare, cls).__new__(cls)
+         cls._instance.__sh_mem = mmap.mmap(-1, 1)
+      return cls._instance
+
+    def write(self, flag: SharedFlags) -> None:
+        self.__sh_mem.seek(0)
+        self.__sh_mem.write_byte(flag.value)
+
+    def read(self) -> int:
+        self.__sh_mem.seek(0)
+        return self.__sh_mem.read_byte()
+
+    def close(self) -> None:
+        None if self.__sh_mem.closed else self.__sh_mem.close()
+
+By utilizing shared memory, it becomes remarkably straightforward to communicate with any running process that
+has access to this designated byte. This mechanism extends beyond the ``py_pcap`` module and is also employed whenever
+the `Capture-Object`_\ s method ``get()`` is invoked. The function caller is spared the need to directly access or modify
+internal data to retrieve network traffic.
+
+Capture-Object
+--------------
+
+The Capture-Object is returned ``pcap.capture()`` (`Packet Capture`_). The caller then can use its get() and error()
+methods to either retrieve collected network data or to check if an error occurred and process was terminated.
+
+The Capture-Object instance is returned by the ``pcap.capture()`` function (`Packet Capture`_). The caller can then utilize
+its get() and error() methods to either obtain the captured network data or verify if an error has occurred, causing the
+process to terminate prematurely.
+
+.. code-block:: python
+
+   class Capture:
+
+      def get(self):
+         if not self.error():
+            self.__shared_mem.write(SharedFlags.FLAG_GET)
+            while self.__shared_mem.read() != SharedFlags.FLAG_PUT.value:
+               pass
+         self.__shared_mem.write(SharedFlags.FLAG_NONE)
+         return self.__queue.get()
+
+      def put(self, data):
+         self.__queue.put(data)
+
+      def error(self):
+         if self.__shared_mem.read() == SharedFlags.FLAG_ERROR:
+            return True
+
+
 .. code-block:: python
 
    if _shared_mem.read() == SharedFlags.FLAG_GET.value:
@@ -527,14 +605,12 @@ assess whether the source or destination IP address of the packet belongs to the
 
 
 
-Capture-Object
---------------
 
 
-Network-Listener Architecture
-=============================
+
+
+Network-Listener Architecture and Usage
+=======================================
 
 .. figure:: /media/network_arch.svg
    :alt: Image Network-Sniffer architecture
-
-
