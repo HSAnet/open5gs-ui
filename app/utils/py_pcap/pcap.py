@@ -1,4 +1,3 @@
-import time
 import traceback
 import ctypes as ct
 from datetime import datetime

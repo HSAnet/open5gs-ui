@@ -2,6 +2,8 @@ import socket
 import struct
 import ipaddress
 
+from socket import ETHERTYPE_IP
+
 from .._utils import Packet
 
 import numpy as np
@@ -128,7 +130,7 @@ def __parse_vlan_packet(data: bytes, ref: np.array) -> None:
     pass
 
 
-def parse_packet(packet_data: bytes, ex_packet_data: List[Union[str, int, None]]) -> np.array:
+def parse_packet(packet_data: bytes, ex_packet_data: List[Union[str, int, None]]) -> None:
     """
     Function parses bytes to python data and stores it in provided list.
 
