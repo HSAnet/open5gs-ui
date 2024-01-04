@@ -13,7 +13,7 @@ class Capture:
         self.__shared_mem: LibpcapShare = shared_mem
 
     def get(self):
-        if not self.__error():
+        if not self.error():
             self.__shared_mem.write(SharedFlags.FLAG_GET)
             while self.__shared_mem.read() != SharedFlags.FLAG_PUT.value:
                 pass
@@ -25,7 +25,7 @@ class Capture:
     def put(self, data):
         self.__queue.put(data)
 
-    def __error(self):
+    def error(self):
         if self.__shared_mem.read() == SharedFlags.FLAG_ERROR:
             return True
 
