@@ -1,16 +1,18 @@
+import regex as re
 from datetime import datetime
 from typing import Union, Dict
+from pathlib import Path
 
 from .bash import Bash, BashException, BashCommands
-import regex as re
 
 status_pattern = re.compile(r'Active:\s(?P<status>\w+).*?(?<=since)[\D\s]*(?P<date>[\d\s\-:]+).*?Memory:\s(?P<memory>[\d.]+).*?CPU:\s(?P<cpu>\d+)', re.DOTALL)
 
 
 class Service:
 
-    def __init__(self, service_name: str):
+    def __init__(self, service_name: str, log_file: Path, network_function_name: str):
         self.__service_name: str = service_name
+        self.__log_name: Path = log_file / network_function_name
         self.__status: Union[None, Dict[str, Union[str, datetime, None, bool]]] = {
                     'status': False,
                     'up_date': None,
