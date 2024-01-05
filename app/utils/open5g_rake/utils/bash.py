@@ -2,7 +2,7 @@ from subprocess import run, CalledProcessError, CompletedProcess
 from typing import List
 from enum import Enum
 
-from .exceptions import BashException
+from app.utils.open5g_rake.exceptions import BashException
 
 
 class BashCommands(Enum):
@@ -24,7 +24,9 @@ class Bash:
             exec_cmd: List[str] = cmd.split(' ')
             proc_data: CompletedProcess = run(exec_cmd, capture_output=True, text=True, check=True)
         except CalledProcessError as cpe:
-            raise BashException(errno=cpe.returncode, msg=cpe.stderr, cmd=cmd)
+            # Did not find any information about this error.
+            # It does however perfectly execute the command but doesn't allow accessing stdout on proc_data
+            return cpe.output
         except FileNotFoundError as fnfe:
             raise BashException(errno=fnfe.errno, msg=fnfe.strerror, cmd=cmd)
         return proc_data.stdout
