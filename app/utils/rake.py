@@ -2,7 +2,7 @@ import logging
 from pathlib import Path
 from typing import Callable, Tuple
 
-from .bash import Bash, BashCommands
+from app.utils.bash import Bash, BashCommands
 
 
 class Rake:
@@ -61,6 +61,6 @@ class Rake:
         return ret_value, log_error
 
 
-# if __name__ == '__main__':
-#     r = Rake()
-#     print(r.rake('open5gs-upfd.service', 'upf'))
+if __name__ == '__main__':
+    r = Rake()
+    print(r.rake('open5gs-upfd.service', 'upf'))
