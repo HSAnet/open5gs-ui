@@ -572,7 +572,7 @@ The Capture-Object is returned ``pcap.capture()`` (`Packet Capture`_). The calle
 methods to either retrieve collected network data or to check if an error occurred and process was terminated.
 
 The Capture-Object instance is returned by the ``pcap.capture()`` function (`Packet Capture`_). The caller can then utilize
-its get() and error() methods to either obtain the captured network data or verify if an error has occurred, causing the
+its ``get()`` and ``error()`` methods to either obtain the captured network data or verify if an error has occurred, causing the
 process to terminate prematurely.
 
 .. code-block:: python
@@ -597,20 +597,57 @@ process to terminate prematurely.
 
 .. code-block:: python
 
+   # Parsing Process (infinite loop)
    if _shared_mem.read() == SharedFlags.FLAG_GET.value:
       c_obj.put(pd.DataFrame({col.name.capitalize(): pd.Series(data=packet_lst[index], dtype=col.d_type) for index, col in enumerate(Packet)}))
 
       _shared_mem.write(SharedFlags.FLAG_PUT)
       packet_lst = [[] for _ in range(len(Packet.__members__))]
 
+The Capture-Object's get() function internally writes a GET-flag into the shared memory, which is then detected and
+acted upon by the Parsing-Process. The Parsing-Process reassembles the collected packet data into a pandas.DataFrame,
+placing it into a queue. The get() function then empties the queue, retrieving the compiled DataFrame and returning
+it to the caller.
 
 
-
-
-
-
-Network-Listener Architecture and Usage
-=======================================
+Architecture and Usage
+======================
 
 .. figure:: /media/network_arch.svg
    :alt: Image Network-Sniffer architecture
+
+Using the py_pcap module is remarkably straightforward. To initiate the capture process, create a Capture-Object
+instance using the ``pcap.capture()`` function, specifying the network device's name and an optional BPF filter. If any
+critical error occurs during the device setup, the ``pcap.capture()`` function will raise an ``pcap._utils.NetworkError``
+exception. However, once a successful Capture instance is obtained, network traffic can be continuously retrieved
+using the instance's ``get()`` method. To ensure the process hasn't encountered an irresolvable issue and prematurely
+terminated, it's advisable to check the ``error()`` method before accessing ``get()`` to handle any error messages.
+
+
+.. code-block:: python
+   :linenos:
+
+   import py_pcap as pcap
+   import pandas as pd
+   import time
+
+   pd.set_option('display.max_columns', 500)
+   pd.set_option('display.width', 2000)
+
+   if __name__ == '__main__':
+      try:
+         a_obj: pcap.Capture = pcap.capture('ogstun', [])
+         while True:
+            time.sleep(5)
+            if a_obj.error():
+               # handle error
+               print(a_obj.get())
+            else:
+               # proceed with data
+               print(a_obj.get())
+      except pcap._utils.NetworkError as ne:
+         # Handle device setup errors
+         print(ne)
+
+The code snippet above demonstrates the ability to retrieve captured network traffic data at any given point in time by
+delaying the process for five seconds in line 12.
