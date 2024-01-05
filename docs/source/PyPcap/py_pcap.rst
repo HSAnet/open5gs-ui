@@ -382,6 +382,11 @@ The parsing process mainly passes the data received in the Queue towards the ``p
 parse_packet()
 --------------
 
+.. figure:: /media/inet_pkg.svg
+   :alt: Image of Internet packet architecture
+
+   Image 1: Showing a simplified version of an internet packet architecture.
+
 The ``parse_packet()`` function at first parses the EtherType.
 
 .. code-block:: python
