@@ -92,7 +92,7 @@ class Service:
         """
         is_new_log: Callable[[datetime], bool] = lambda lg_ts: True if not time_delta else (
                 lg_ts > (datetime.now() - timedelta(seconds=time_delta)))
-        return [{'date': log_date.strftime('%d.%m.%Y %H:%M:%S'),
+        return [{'date': log_date.strftime('%Y-%m-%d %H:%M:%S'),
                  'level': match.group('level'),
                  'msg': match.group('msg')
                  } for line in log_data.splitlines() if (match := log_pattern.search(line)) and
@@ -110,10 +110,9 @@ class Service:
                 f"}}")
 
     def __str__(self):
-        self.__get_status()
         return (f"Service: {self.service_name}\n"
                 f"Log-File: {'Unknown' if not self.log_file else self.log_file}\n"
-                f"Status: {'Active' if self.__status['status'] else 'Inactive'}\n"
-                f"{'Up' if self.__status['status'] else 'Down'} since {self.__status['since'].strftime('%d.%m.%Y %H:%M:%S')} {int((datetime.now() - self.__status['since']).total_seconds() // 60)} Minutes\n"
+                f"Status: {'Active' if self.status['status'] else 'Inactive'}\n"
+                f"{'Up' if self.__status['status'] else 'Down'} since {self.__status['since'].strftime('%Y-%m-%d %H:%M:%S')} {int((datetime.now() - self.__status['since']).total_seconds() // 60)} Minutes\n"
                 f"\tCPU usage: {self.__status['cpu']} ms\n"
                 f"\tMem usage: {'0' if not self.__status['memory'] else self.__status['memory']} MB")
