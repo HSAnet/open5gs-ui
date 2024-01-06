@@ -2,8 +2,8 @@ from typing import List, Union
 from pathlib import Path
 import regex as re
 
-from .exceptions import BashException, Open5gsException
-from .utils import Service, Bash, BashCommands
+from app.utils.open5g_rake.utils.exceptions import Open5gsException
+from .utils import Service, Bash, BashCommands, BashException
 
 
 class Open5GRake:

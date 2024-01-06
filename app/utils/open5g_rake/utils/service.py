@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from typing import Union, Dict, List, Callable
 
 from .bash import Bash, BashException, BashCommands
-from ..exceptions import Open5gsException
+from app.utils.open5g_rake.utils.exceptions import Open5gsException
 
 status_pattern = re.compile(r'Active:\s(?P<status>\w+).*?(?<=since)[\D\s]*(?P<date>[\d\s\-:]+)(.*?Memory:\s(?P<memory>[\d.]+))?.*?CPU:\s(?P<cpu>\d+)', re.DOTALL)
 log_pattern = re.compile(r'(?P<date>\d{2}/\d{2})\s(?P<time>[\d:]+).*?(?P<level>DEBUG|INFO|WARNING|CRITICAL):\s(?P<msg>.*)', re.MULTILINE)

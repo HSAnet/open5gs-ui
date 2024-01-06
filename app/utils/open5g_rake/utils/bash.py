@@ -2,7 +2,7 @@ from subprocess import run, CalledProcessError, CompletedProcess
 from typing import List
 from enum import Enum
 
-from app.utils.open5g_rake.exceptions import BashException
+from app.utils.open5g_rake.utils.exceptions import BashException
 
 
 class BashCommands(Enum):
