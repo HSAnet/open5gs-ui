@@ -63,8 +63,8 @@ class Open5GRake:
         return f'{{\"services\": {{\"service": [{','.join([service.to_json(time_delta) for service in self.__service_list])}]}}}}'
 
 
-if __name__ == '__main__':
-    rake = Open5GRake(Path('/var/log/open5gs/'))
-
-    print(rake.rake_json(10))
+# if __name__ == '__main__':
+#     rake = Open5GRake(Path('/var/log/open5gs/'))
+#
+#     print(rake.rake_json(10))
 
