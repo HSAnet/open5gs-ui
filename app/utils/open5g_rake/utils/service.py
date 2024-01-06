@@ -46,7 +46,6 @@ class Service:
         """
         try:
             result = Bash().run(BashCommands.CTL_STATUS.value.format(service_name=self.service_name))
-            x = status_pattern.search(result)
             if match := status_pattern.search(result):
                 self.__status['status'] = True if 'active' == match.group('status') else False
                 self.__status['since'] = match.group('date').strip()
