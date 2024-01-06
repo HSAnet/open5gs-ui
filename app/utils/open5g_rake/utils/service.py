@@ -101,8 +101,8 @@ class Service:
                                                                f'{match.group('time')}')))]
 
     def to_json(self, time_delta: Union[int, None]) -> str:
-        return (f"{{\"Name\": \"{self.service_name}\",\"Status\": \"{self.__status['status']}\",\""
-                f"{'Up' if self.status['status'] else 'Down'} "
+        return (f"{{\"Name\": \"{self.service_name}\",\"Status\": \"{self.status['status']}\",\""
+                f"{'Up' if self.__status['status'] else 'Down'} "
                 f"since\": \"{self.__status['since']}\","
                 f"\"CPU usage\": \"{self.__status['cpu']}\","
                 f"\"Mem usage\": \"{'0' if not self.__status['memory'] else self.__status['memory']}\","
