@@ -12,7 +12,7 @@ tables, and graphs, providing insights into the network's behavior.
 
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 4
    :caption: Contents:
 
    AppStart/app_start

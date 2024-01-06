@@ -188,6 +188,10 @@ Rake-Object
 init
 ++++
 
+On initialization, the rake looks up all open5Gs services by executing the bash command
+``systemctl list-units open5gs-* --all``. The output looks as follows.
+
+
 .. code-block:: sh
    :caption: ``systemctl list-units open5gs-* --all`` output, with upf-service stopped
 
@@ -211,13 +215,102 @@ init
    open5gs-webui.service loaded active   running Open5GS WebUI
 
 
-rake_raw()
-++++++++++
+.. code-block:: python
+   :linenos:
+   :caption: private function ``__get_service_list()``
 
-rake_json()
-+++++++++++
+   def __get_service_list(self) -> None:
+      result = Bash().run(BashCommands.OPENFIVEGSERVICES.value)
+      for line in result.splitlines()[1:17]:
+          tmp = self.__split_pattern.split(line.strip())
+          self.__service_list.append(Service(service_name=tmp[0], log_file=None if not self.__path else self.__path / tmp[5].lower()))
 
+By using a simple regular expression ``self.__split_pattern = re.compile(r'\s+')``, the individual lines are split
+regardless of the number of whitespace characters encountered. Subsequently, `Service-Object`_\s are instantiated and
+stored in a list.
 
+Usage
++++++
+
+.. code-block:: python
+   :caption: Example on how to retrieve log files form open5gs-services
+
+   import open5g_rake as rake
+   from pathlib import Path
+
+    o_rake = rake.Open5GRake()
+    # o_rake = rake.Open5GRake(log_files_dir=Path('/var/log/open5gs/))
+    while True:
+        time.sleep(5)
+        try:
+            print(o_rake.rake_json(time_delta=100))
+            # for log in o_rake.rake_raw(time_delta=100):
+            #     print(log)
+        except rake.Open5gsException as e:
+            print(e.msg)
+
+The Open5GRake object can be initialized either with or without a specific log file path. Once initialized,
+the log data can be retrieved at any time using the ``rake_json()`` or ``rake_raw()`` methods.
+
+rake_raw() output
+_________________
+
+.. code-block:: python
+   :caption: ``rake_raw()`` output. Dictionaries containing the date, log-level and the message of the logs
+
+   {'date': '2024-01-06 08:26:34', 'level': 'WARNING', 'msg': 'Retry association with peer [127.0.0.7]:8805 failed (../src/smf/pfcp-sm.c:110)'}
+   {'date': '2024-01-06 08:26:42', 'level': 'WARNING', 'msg': '[229] LOCAL  No Reponse. Give up! for step 1 type 5 peer [127.0.0.7]:8805 (../lib/pfcp/xact.c:606)'}
+   {'date': '2024-01-06 08:26:45', 'level': 'WARNING', 'msg': 'Retry association with peer [127.0.0.7]:8805 failed (../src/smf/pfcp-sm.c:110)'}
+   {'date': '2024-01-06 08:26:53', 'level': 'WARNING', 'msg': '[230] LOCAL  No Reponse. Give up! for step 1 type 5 peer [127.0.0.7]:8805 (../lib/pfcp/xact.c:606)'}
+
+rake_json() output
+__________________
+
+.. code-block:: json
+   :caption: ``rake_json()`` output (Not the full output, typically there are 17 open5gs-services. The output also does not contain indentation)
+   :linenos:
+
+   {
+     "services": {
+       "service": [
+         {
+           "Name": "open5gs-amfd.service",
+           "Status": "True",
+           "Up since": "2024-01-06 07:44:57",
+           "CPU usage": "148",
+           "Mem usage": "1.5",
+           "logs": []
+         },
+         {
+           "Name": "open5gs-smfd.service",
+           "Status": "True",
+           "Up since": "2024-01-06 07:44:57",
+           "CPU usage": "1",
+           "Mem usage": "3.9",
+           "logs": [
+             {
+               "date": "2024-01-06 08:19:14",
+               "level": "WARNING",
+               "msg": "Retry association with peer [127.0.0.7]:8805 failed (../src/smf/pfcp-sm.c:110)"
+             },
+             {
+               "date": "2024-01-06 08:20:50",
+               "level": "WARNING",
+               "msg": "[197] LOCAL  No Reponse. Give up! for step 1 type 5 peer [127.0.0.7]:8805 (../lib/pfcp/xact.c:606)"
+             }
+           ]
+         },
+         {
+           "Name": "open5gs-upfd.service",
+           "Status": "False",
+           "Down since": "2024-01-06 08:07:27",
+           "CPU usage": "139",
+           "Mem usage": "0",
+           "logs": []
+         }
+       ]
+     }
+   }
 
 
 
