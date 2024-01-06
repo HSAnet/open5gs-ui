@@ -1,9 +1,9 @@
 Retrieving and processing systemd-logs
-######################################
+**************************************
 
 
 Open5Gs Network function logs
-*****************************
+=============================
 
 .. role:: raw-html(raw)
    :format: html
@@ -25,6 +25,9 @@ command.
 
 |
 
+open5g_rake
+===========
+
 .. figure:: /media/open5gslog_arch.svg
    :alt: Architecture Observer and rake of systemd-logs
    :class: with-border
@@ -34,9 +37,6 @@ command.
    into a validated RFC 8259 JSON string using the ``rake_json()`` function. Upon initialization, Open5GRake
    creates a list of Service objects based on systemd's output. Each service instance can retrieve its log
    data and pass it back when necessary.
-
-Implementation
-==============
 
 Service-Object
 --------------
@@ -108,73 +108,114 @@ The ``VERBOSE``-Flag enables documentation of the regular expression line by lin
 because the bash-commands return value includes line separators, but the pattern is simple enough to be parsed in
 a single iteration.
 
-
 Logs
 ++++
 
+Log data exhibits subtle variations depending on the method of access. ``journalctl`` displays the log date at the
+beginning of the string. The .log file also starts with a date, but the format differs. To match log entries with
+the same date, the regular expression does not assume the date to be at the beginning of the string.
+
 .. code-block:: sh
+   :caption: log string from journalctl and .log file
 
    # journalctl log
    01/05 19:46:53.583: [app] INFO: Configuration: '/etc/open5gs/amf.yaml' (../lib/app/ogs-init.c:130)
    # file log
    Jan 05 19:46:53 Open5Gs open5gs-amfd[3266]: 01/05 19:46:53.687: [app] INFO: Configuration: '/etc/open5gs/amf.yaml' (../lib/app/ogs-init.c:130)
 
+.. code-block:: python
+   :caption: regex log_pattern to parse log string
 
-Json
+   log_pattern = re.compile(r'(?P<date>\d{2}/\d{2})'                    # The log date consists of day and mont like 30/02
+                            r'\s'                                       # Followed by a whitespace char
+                            r'(?P<time>[\d:]+)'                         # The time consists of digits and ':'
+                            r'.*?'                                      # Random info between time and log-level
+                            r'(?P<level>DEBUG|INFO|WARNING|CRITICAL)'   # The log-level is one of the listed words
+                            r':\s'                                      # Followed by a whitespace char
+                            r'(?P<msg>.*)',                             # The rest of the line is the log message
+                            re.MULTILINE | re.VERBOSE)
+
+The ``__parse_log_data()`` function enables parsing either all available logs or filtering out logs older than
+the specified time_delta (an integer value in seconds). The lambda expression in lines 2 and 3 implements
+this filtering mechanism. To compare and subtract from the log date, a conversion to a datetime object is
+necessary. However, the dictionary containing the log information is more versatile when it does not use a
+datetime object, which is why it is converted back into a string format.
+
+.. code-block:: python
+   :linenos:
+   :emphasize-lines: 2, 3
+   :caption: private ``__parse_log_data()`` function
+
+   def __parse_log_data(self, log_data: str, time_delta: Union[int, None])
+      is_new_log: Callable[[datetime], bool] = lambda lg_ts: True if not time_delta else (
+                lg_ts > (datetime.now() - timedelta(seconds=time_delta)))
+        return [{'date': log_date.strftime('%d.%m.%Y %H:%M:%S'),
+                 'level': match.group('level'),
+                 'msg': match.group('msg')
+                 } for line in log_data.splitlines() if (match := log_pattern.search(line)) and
+                is_new_log((log_date := datetime.fromisoformat(f'{datetime.now().year}'
+                                                               f'{match.group('date').replace('/', '')} '
+                                                               f'{match.group('time')}')))]
+
+JSON
 ++++
 
-
-
-
+Python offers multiple approaches to parse data into JSON format. Typically, the ``json.dumps()`` function from the
+json package utilizes the ``Object.__dict__()`` method to determine how to serialize the object. However, this method
+fails to handle complex objects. Alternatively, an encoder object can be implemented, but for this project, a
+hybrid approach involving self-creation and json.dumps() is employed. Complex attributes are extracted individually,
+and the logs, which are already structured as a list of dictionaries, are converted using the ``json.dumps()`` function.
 
 
 .. code-block:: python
-   :linenos:
+   :caption: to_json() function for parsing Service-Object (status and logs) into json string
 
-   def rake(self, service_name: str, net_fun_name: str) -> str:
-      logs, log_error = self.__file_reader(net_fun_name=net_fun_name)
-      return logs if not log_error else Bash().run(
-          BashCommands.CTLSERVICELOG.value.format(service_name=service_name))
+   def to_json(self, time_delta: Union[int, None]) -> str:
+      return (f"{{\"Name\": \"{self.service_name}\",\"Status\": \"{self.__status['status']}\",\""
+              f"{'Up' if self.status['status'] else 'Down'} "
+              f"since\": \"{self.__status['since']}\","
+              f"\"CPU usage\": \"{self.__status['cpu']}\","
+              f"\"Mem usage\": \"{'0' if not self.__status['memory'] else self.__status['memory']}\","
+              f"\"logs\": {json.dumps([log for log in self.get_logs(time_delta)])}"
+              f"}}")
 
-The rake function initially attempts to read the log files. If the user lacks the necessary permissions or the files
-do not exist, ``journalctl -u open5gs-service_name.service -b`` is executed instead. (Files in the ``/var/log/open5gs``
-directory typically require root privileges.) The reason for using two different yet similar function parameters
-is that some Open5G systemd services, such as open5gs-upfd.service or open5gs-smfd.service, have different names
-than the corresponding log files, such as upf.log or amf.log.
+In order to use the python f-string, it is necessary to escape curly-brackets with another curly-bracket, which
+is why the beginning and the end of the string contain {{ and }}.
 
-.. code-block:: python
-   :linenos:
-   :emphasize-lines: 4, 5, 6, 7
+Rake-Object
+-----------
 
-   def get_logs(self, service_name: str) -> Tuple[str, bool]:
-      ret_value: str = ''
-      log_error: bool = True
-      zipped: Callable[[Path], bool] = lambda file_name: '.gz' == file_name.suffix
-      for path in [log_file for log_file in self.__log_dir.glob('*')
-                  if not zipped(log_file)
-                  and net_fun_name.lower() in str(log_file)][1::-1]:
-         log_error = False
-         try:
-             with path.open() as f:
-                 ret_value += f.read()
-         except PermissionError:
-             self.__rake_logger.warning('Permission denied, cannot access log files!\n'
-                                        'Journalctl will be used to retrieve log-data.\n')
-             log_error = True
-             break
-      return ret_value, log_error
+init
+++++
 
-The following code example shows the log-file-reader function. The **self.__log_dir** is accessed from
-its surrounding class (contains the path of the log files. **default: /var/log/open5gs**.
-In line 5 every file in the directory is gathered. Line 6 calls line 4 and makes sure that the file is
-not zipped. The system zips old log files, however we are not interested in those. Line 7 then selects
-all the gathered files that contain the *word/service_name* provided as argument. Since we are only interested
-in the last two log-files, **[1::-1]** selects those and reverses the order. Systemd pushes log-files
-downwards regarding their filenames, like [service.log, service.log.1, ... , service.log.n].
-If there wasn't any log file found at all, which should not happen, however the user might have changed
-the system-log-directory without changing it for this tool, the function returns a True boolean as
-second return-value to indicate an error.
+.. code-block:: sh
+   :caption: ``systemctl list-units open5gs-* --all`` output, with upf-service stopped
 
+   UNIT                  LOAD   ACTIVE   SUB     DESCRIPTION
+   open5gs-amfd.service  loaded active   running Open5GS AMF Daemon
+   open5gs-ausfd.service loaded active   running Open5GS AUSF Daemon
+   open5gs-bsfd.service  loaded active   running Open5GS BSF Daemon
+   open5gs-hssd.service  loaded active   running Open5GS HSS Daemon
+   open5gs-mmed.service  loaded active   running Open5GS MME Daemon
+   open5gs-nrfd.service  loaded active   running Open5GS NRF Daemon
+   open5gs-nssfd.service loaded active   running Open5GS NSSF Daemon
+   open5gs-pcfd.service  loaded active   running Open5GS PCF Daemon
+   open5gs-pcrfd.service loaded active   running Open5GS PCRF Daemon
+   open5gs-scpd.service  loaded active   running Open5GS SCP Daemon
+   open5gs-sgwcd.service loaded active   running Open5GS SGW-C Daemon
+   open5gs-sgwud.service loaded active   running Open5GS SGW-U Daemon
+   open5gs-smfd.service  loaded active   running Open5GS SMF Daemon
+   open5gs-udmd.service  loaded active   running Open5GS UDM Daemon
+   open5gs-udrd.service  loaded active   running Open5GS UDR Daemon
+   open5gs-upfd.service  loaded inactive dead    Open5GS UPF Daemon
+   open5gs-webui.service loaded active   running Open5GS WebUI
+
+
+rake_raw()
+++++++++++
+
+rake_json()
++++++++++++
 
 
 
