@@ -11,6 +11,7 @@ class Open5GRake:
     def __init__(self, log_files_dir: Path = None):
         self.__path: Union[None, Path] = log_files_dir
         self.__service_list: List[Service] = []
+        self.__split_pattern = re.compile(r'\s+')
 
         self.__get_service_list()
 
@@ -21,14 +22,11 @@ class Open5GRake:
 
         :raises Open5GSException: If error occurs while executing bash-command
         """
-        pattern = re.compile(r"(?P<service_name>open5gs-\w+\.service).*?(?<=Open5GS\s)(?P<log_name>[A-Z]{3,4}(?:-[A-Z])?)", re.M)
         try:
             result = Bash().run(BashCommands.OPENFIVEGSERVICES.value)
-            for line in (l for l in result.split('\n') if l.strip().startswith('open5gs-')):
-                if match := pattern.search(line):
-                    service_name = match.group('service_name')
-                    log_name = match.group('log_name').lower().replace('-', '')
-                    self.__service_list.append(Service(service_name, None if not self.__path else self.__path / log_name))
+            for line in result.splitlines()[1:17]:
+                tmp = self.__split_pattern.split(line.strip())
+                self.__service_list.append(Service(service_name=tmp[0], log_file=None if not self.__path else self.__path / tmp[5].lower()))
         except BashException as be:
             raise Open5gsException("Error occurred while trying to access service list.", prev_error=be)
 
