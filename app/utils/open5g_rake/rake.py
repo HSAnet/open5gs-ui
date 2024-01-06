@@ -1,12 +1,9 @@
-import datetime
-import json
-from typing import List, Union, Callable
+from typing import List, Union
 from pathlib import Path
 import regex as re
 
-from app.utils.open5g_rake.exceptions import BashException, Open5gsException
-from app.utils.open5g_rake.utils.bash import Bash, BashCommands
-from app.utils.open5g_rake.utils.service import Service
+from .exceptions import BashException, Open5gsException
+from .utils import Service, Bash, BashCommands
 
 
 class Open5GRake:
@@ -39,19 +36,35 @@ class Open5GRake:
     def service_list(self) -> List[Service]:
         return self.__service_list
 
-    def rake(self, time_delta: int = None):
+    def rake_raw(self, time_delta: int = None):
+        """
+        Get raw log-data without service information.
+        The result is a list containing logs which are within the timeframe
+
+        :raises: Open5gsException when logs where not accessible!
+        :param time_delta: Integer Value in seconds, determining how old the log files can be.
+                           (If 10s for example, any logs data found which was logged more than 10s ago will be discarded)
+        :return: List with dictionaries, the dicts contain 3 keys (date, level, msg)
+        :rtype: List[Dict[str, str]]
+        """
         for service in self.__service_list:
             for log in service.get_logs(time_delta):
                 yield log
 
-    def get_json(self, time_delta: int = None):
+    def rake_json(self, time_delta: int = None) -> str:
+        """
+        Get log-data + service information bundled in json format.
+
+        :raises: Open5gsException when logs where not accessible!
+        :param time_delta: Integer Value in seconds, determining how old the log files can be.
+                           (If 10s for example, any logs data found which was logged more than 10s ago will be discarded)
+        :return: json string
+        """
         return f'{{\"services\": {{\"service": [{','.join([service.to_json(time_delta) for service in self.__service_list])}]}}}}'
 
 
 if __name__ == '__main__':
     rake = Open5GRake(Path('/var/log/open5gs/'))
-    # for service_log in rake.rake(10):
-    #     print(service_log)
 
-    print(rake.get_json(10))
+    print(rake.rake_json(10))
 

@@ -1,14 +1,14 @@
 import json
-
 import regex as re
+from pathlib import Path
 from datetime import datetime, timedelta
 from typing import Union, Dict, List, Callable
-from pathlib import Path
 
-from app.utils.open5g_rake.utils.bash import Bash, BashException, BashCommands
+from .bash import Bash, BashException, BashCommands
+from ..exceptions import Open5gsException
 
-status_pattern = re.compile(
-    r'Active:\s(?P<status>\w+).*?(?<=since)[\D\s]*(?P<date>[\d\s\-:]+)(.*?Memory:\s(?P<memory>[\d.]+))?.*?CPU:\s(?P<cpu>\d+)', re.DOTALL)
+status_pattern = re.compile(r'Active:\s(?P<status>\w+).*?(?<=since)[\D\s]*(?P<date>[\d\s\-:]+)(.*?Memory:\s(?P<memory>[\d.]+))?.*?CPU:\s(?P<cpu>\d+)', re.DOTALL)
+log_pattern = re.compile(r'(?P<date>\d{2}/\d{2})\s(?P<time>[\d:]+).*?(?P<level>DEBUG|INFO|WARNING|CRITICAL):\s(?P<msg>.*)', re.MULTILINE)
 
 
 class Service:
@@ -37,10 +37,6 @@ class Service:
     def log_file(self) -> Union[None, Path]:
         return self.__log_file
 
-    @property
-    def file_access(self) -> bool:
-        return self.__file_access
-
     def __get_status(self) -> None:
         """
         Executes status check on service. Retrieves status, up-time, memory-usage and cpu-time.
@@ -58,7 +54,7 @@ class Service:
                 self.__status['cpu'] = match.group('cpu')
             else:
                 self.__status['status'] = False
-        except BashException as be:
+        except BashException:
             self.__status['status'] = False
 
     def get_logs(self, time_delta: Union[int, None]) -> List[Dict[str, Union[datetime, str]]]:
@@ -67,7 +63,7 @@ class Service:
         If provided path is not accessible or permission denied journalctl is executed.
 
         :raises BashException: If journalctl command encountered error
-        :return: Log-String-Data (not parsed)
+        :return: logs as dictionary
         """
         if self.__file_access:
             try:
@@ -82,17 +78,25 @@ class Service:
                 return self.get_logs(time_delta=time_delta)
         else:
             # Raises BashException if error while executing command
-            return self.__parse_log_data(
-                Bash().run(BashCommands.CTLSERVICELOG.value.format(service_name=self.service_name)), time_delta)
+            try:
+                return self.__parse_log_data(Bash().run(BashCommands.CTLSERVICELOG.value.format(service_name=self.service_name)), time_delta)
+            except BashException as be:
+                raise Open5gsException(msg='Logs cannot be retrieved!', prev_error=be)
 
     def __parse_log_data(self, log_data: str, time_delta: Union[int, None]) -> List[Dict[str, Union[datetime, str]]]:
-        pattern = re.compile(r'(?P<date>^\d{2}/\d{2})\s(?P<time>[\d:]+).*?(?P<level>DEBUG|INFO|WARNING|CRITICAL):\s(?P<msg>.*)', re.MULTILINE)
+        """
+        Function turns raw log-string (multiple lines) into python dictionary
+
+        :param log_data: string containing log data
+        :param time_delta: max age (in seconds) of log
+        :return: list of dictionaries containing 3 keys (date, level, msg)
+        """
         is_new_log: Callable[[datetime], bool] = lambda lg_ts: True if not time_delta else (
                 lg_ts > (datetime.now() - timedelta(seconds=time_delta)))
         return [{'date': log_date.strftime('%d.%m.%Y %H:%M:%S'),
                  'level': match.group('level'),
                  'msg': match.group('msg')
-                 } for line in log_data.splitlines() if (match := pattern.search(line)) and
+                 } for line in log_data.splitlines() if (match := log_pattern.search(line)) and
                 is_new_log((log_date := datetime.fromisoformat(f'{datetime.now().year}' 
                                                                f'{match.group('date').replace('/', '')} '
                                                                f'{match.group('time')}')))]
