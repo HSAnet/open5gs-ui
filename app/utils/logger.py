@@ -123,8 +123,6 @@ def stop_logger() -> None:
     """
     Cleanup Logger when program ends or fails
 
-    :param listener_proc: The Process listening for logs
-    :param log_queue: The queue used for logging
     :return: None
     """
     LOG_QUEUE.put_nowait(None)
