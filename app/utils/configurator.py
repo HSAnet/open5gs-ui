@@ -8,7 +8,8 @@ class _Pattern(Enum):
     DELAY = re.compile(r'^Delay[\s=]+(?P<delay>\d+)?', re.MULTILINE)
     SERVER = re.compile(r'^Server[\s=]+(?P<server>(?:25[0-5]|(?:2[0-4]|1\d|[1-9]|)\d\.?\b){4})?', re.MULTILINE)
     PORT = re.compile(r'^Port[\s=]+(?P<port>\d+)?', re.MULTILINE)
-    CERT = re.compile(r'^Cert[\s=]+(?P<cert>.+)?', re.MULTILINE)
+    PUBLIC_KEY = re.compile(r'^Public_Key[\s=]+(?P<public_key>.+)?', re.MULTILINE)
+    PRIVATE_KEY = re.compile(r'^Private_Key[\s=]+(?P<private_key>.+)?', re.MULTILINE)
     BPF = re.compile(r'^BPF-Filter[\s=]+(?P<bpf>.+)?', re.MULTILINE)
     LOG_DIR = re.compile(r'^Dir[\s=]+(?P<log_dir>.+)?', re.MULTILINE)
     DEVICE = re.compile(r'^Device[\s=]+(?P<device>.+)?', re.MULTILINE)
@@ -60,8 +61,12 @@ class Config(metaclass=_Singleton):
         return self._settings["delay"]
 
     @property
-    def cert(self):
-        return self._settings["cert"]
+    def public_key(self):
+        return self._settings["public_key"]
+
+    @property
+    def private_key(self):
+        return self._settings["private_key"]
 
     @property
     def log_dir(self):
