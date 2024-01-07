@@ -2,16 +2,11 @@ from typing import Callable, List, Union, Dict
 from time import time
 import logging
 
-from parser import Parser
-from utils import Bash, BashCommands, BashException, ExecError, Rake
-
 
 class Observer:
 
     def __init__(self):
-        self.__bash: Bash = Bash()
-        self.__rake: Rake = Rake()
-        self.__parser: Parser = Parser()
+
         self.__old_log: Callable[[float, float, float], bool] = lambda log_time, current_time, delta_time: False if log_time >= (current_time - delta_time) else True
         self.__systemd_logs: List[Dict[str, Union[bool, str, List[str]]]] = []
         self._obs_logger = logging.getLogger(__name__)

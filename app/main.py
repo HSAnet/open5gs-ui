@@ -8,14 +8,14 @@ from scheduler import Scheduler
 from utils import start_logger, stop_logger, worker_config, LOG_QUEUE, ArgsException, e_print
 
 NEWLINE: str = linesep
-CURRENT_VERSION: str = '0.1.0'
+CURRENT_VERSION: str = '0.8.0'
 
 
 def _init_args():
-    help_txt: str = (f'Open5Gs-Log-Observer version {CURRENT_VERSION} {NEWLINE}'
-                     f'Copyright (C) 2023 by TH-Augsburg {NEWLINE}'
+    help_txt: str = (f'Open5Gs-Log-Observer - Version {CURRENT_VERSION} {NEWLINE}'
+                     f'Copyright (C) 2023 - 2024 by TH-Augsburg {NEWLINE}'
                      f'Developer: Jonas Winkler {NEWLINE}'
-                     f'Documentation: https:// {NEWLINE}'
+                     f'Documentation: https://open5gs-ui.readthedocs.io/en/latest/ {NEWLINE}'
                      f'GitHub: https://github.com/HSAnet/open5gs-ui {NEWLINE}'
                      f'{NEWLINE}'
                      f'Supported OS: {NEWLINE}'
@@ -102,6 +102,4 @@ def main():
 
 
 if __name__ == '__main__':
-    #import utils.sniffer as sn
-    #sn.sniff()
     main()
