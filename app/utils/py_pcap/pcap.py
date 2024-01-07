@@ -96,21 +96,23 @@ def __packet_parser(q_in: Queue, c_obj: Capture, net_dev: NetworkDevice):
     packet_lst = [[] for _ in range(len(Packet.__members__))]
     while True:
         try:
-            pkg_data: Dict[str, Union[Dict[str, Union[bytes, int]], bytes]] = q_in.get()
-            packet: bytes = pkg_data['pkg']
-            header: Dict[str, Union[bytes, int]] = pkg_data['hdr']
+            if not q_in.empty():
+                pkg_data: Dict[str, Union[Dict[str, Union[bytes, int]], bytes]] = q_in.get()
+                packet: bytes = pkg_data['pkg']
+                header: Dict[str, Union[bytes, int]] = pkg_data['hdr']
 
-            ex_data: List[Union[str, int, None, datetime]] = [None for _ in range(len(Packet.__members__))]
-            parse_packet(packet, ex_data)
-            if not all(entry is None for entry in ex_data):
-                # Adding Timestamp / Size / Direction (Up-/Download)
-                ex_data[Packet.TIMESTAMP.value] = datetime.fromtimestamp(header['ts'])
-                ex_data[Packet.SIZE.value] = header['len']
-                direction: int = [net_dev.comp_net_id(ip) for ip in [ex_data[Packet.SOURCE_IP.value], ex_data[Packet.DESTINATION_IP.value]]].index(True)
-                ex_data[Packet.DIRECTION.value] = 'UP' if direction == 0 else 'Down' if direction == 1 else ''
-                # convert horizontal to vertical list
-                for idx, etr in enumerate(ex_data):
-                    packet_lst[idx].append(etr)
+                ex_data: List[Union[str, int, None, datetime]] = [None for _ in range(len(Packet.__members__))]
+                parse_packet(packet, ex_data)
+                if not all(entry is None for entry in ex_data):
+                    # Adding Timestamp / Size / Direction (Up-/Download)
+                    ex_data[Packet.TIMESTAMP.value] = datetime.fromtimestamp(header['ts'])
+                    ex_data[Packet.SIZE.value] = header['len']
+                    direction: int = [net_dev.comp_net_id(ip) for ip in [ex_data[Packet.SOURCE_IP.value], ex_data[Packet.DESTINATION_IP.value]]].index(True)
+                    ex_data[Packet.DIRECTION.value] = 'UP' if direction == 0 else 'Down' if direction == 1 else ''
+                    # convert horizontal to vertical list
+                    for idx, etr in enumerate(ex_data):
+                        packet_lst[idx].append(etr)
+                del pkg_data
             # Gets executed when get is called on Capture-Object
             if _shared_mem.read() == SharedFlags.FLAG_GET.value:
                 c_obj.put(pd.DataFrame({col.name.capitalize(): pd.Series(data=packet_lst[index], dtype=col.d_type) for
@@ -132,7 +134,7 @@ def __packet_parser(q_in: Queue, c_obj: Capture, net_dev: NetworkDevice):
             c_obj.put(traceback.format_exc())
             _shared_mem.close()
             return
-        del pkg_data
+
 
 
 def capture(device_name: str, bpf_filter: List[str]):
