@@ -5,12 +5,13 @@ from pathlib import Path
 
 
 class _Pattern(Enum):
-    DELAY = re.compile(r'^Delay[\s=]+(?P<delay>\d+)', re.MULTILINE)
-    SERVER = re.compile(r'^Server[\s=]+(?P<server>(?:25[0-5]|(?:2[0-4]|1\d|[1-9]|)\d\.?\b){4})', re.MULTILINE)
-    PORT = re.compile(r'^Port[\s=]+(?P<port>\d+)', re.MULTILINE)
-    CERT = re.compile(r'^Cert[\s=]+(?P<cert>.+)', re.MULTILINE)
+    DELAY = re.compile(r'^Delay[\s=]+(?P<delay>\d+)?', re.MULTILINE)
+    SERVER = re.compile(r'^Server[\s=]+(?P<server>(?:25[0-5]|(?:2[0-4]|1\d|[1-9]|)\d\.?\b){4})?', re.MULTILINE)
+    PORT = re.compile(r'^Port[\s=]+(?P<port>\d+)?', re.MULTILINE)
+    CERT = re.compile(r'^Cert[\s=]+(?P<cert>.+)?', re.MULTILINE)
     BPF = re.compile(r'^BPF-Filter[\s=]+(?P<bpf>.+)?', re.MULTILINE)
-    LOG_DIR = re.compile(r'^Dir[\s=]+(?P<log_dir>.+)', re.MULTILINE)
+    LOG_DIR = re.compile(r'^Dir[\s=]+(?P<log_dir>.+)?', re.MULTILINE)
+    DEVICE = re.compile(r'^Device[\s=]+(?P<device>.+)?', re.MULTILINE)
 
     @classmethod
     def parse(cls, string: str):
@@ -73,6 +74,10 @@ class Config(metaclass=_Singleton):
     @property
     def server(self):
         return self._settings["server"]
+
+    @property
+    def device(self):
+        return self._settings["device"]
 
     # Neet Idea, but not really practical
     #
