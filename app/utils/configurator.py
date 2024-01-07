@@ -34,7 +34,7 @@ class Config(metaclass=_Singleton):
 
     _instance = None
 
-    def __init__(self, config_file: Path = Path.cwd() / 'settings.conf'):
+    def __init__(self, config_file: Path):
         if not (config_file.exists() and config_file.is_file()):
             raise AttributeError('Config file not found!')
         self._config_file = config_file
