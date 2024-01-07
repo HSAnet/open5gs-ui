@@ -23,6 +23,8 @@ class MonitoringAgent:
         self._net_cap: pcap.pcap.Capture = pcap.pcap.capture(self._network_device, bpf_filter)
 
     def run(self):
+        # Todo: Network capture needs some sort of timeout.
+        # Currently the network capture waits until it captures something ...
         while True:
             try:
                 start_time = time.time()
