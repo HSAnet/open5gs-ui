@@ -53,7 +53,7 @@ class Config(metaclass=_Singleton):
 
     @property
     def bpf_filter(self):
-        return self._settings["bpf_filter"]
+        return self._settings["bpf"]
 
     @property
     def delay(self):

@@ -102,4 +102,9 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    # main()
+    from core import distribution as dist
+    worker_config(LOG_QUEUE)
+    start_logger('INFO')
+    valve: dist.Valve = dist.Valve()
+    valve.run()
