@@ -8,7 +8,8 @@ class _Pattern(Enum):
     DELAY = re.compile(r'^Delay[\s=]+(?P<delay>\d+)?', re.MULTILINE)
     SERVER = re.compile(r'^Server[\s=]+(?P<server>(?:25[0-5]|(?:2[0-4]|1\d|[1-9]|)\d\.?\b){4})?', re.MULTILINE)
     PORT = re.compile(r'^Port[\s=]+(?P<port>\d+)?', re.MULTILINE)
-    SERVER_KEY = re.compile(r'^Server_Key[\s=]+(?P<server_key>.+)?')
+    SERVER_KEY = re.compile(r'^Server_Key[\s=]+(?P<server_key>.+)?', re.MULTILINE)
+    SERVER_SNI = re.compile(r'^Server_SNI[\s=]+(?P<server_sni>.+)?', re.MULTILINE)
     PUBLIC_KEY = re.compile(r'^Public_Key[\s=]+(?P<public_key>.+)?', re.MULTILINE)
     PRIVATE_KEY = re.compile(r'^Private_Key[\s=]+(?P<private_key>.+)?', re.MULTILINE)
     BPF = re.compile(r'^BPF-Filter[\s=]+(?P<bpf>.+)?', re.MULTILINE)
@@ -60,6 +61,14 @@ class Config(metaclass=_Singleton):
     @property
     def delay(self):
         return self._settings["delay"]
+
+    @property
+    def server_key(self):
+        return self._settings["server_key"]
+
+    @property
+    def server_sni(self):
+        return self._settings["server_sni"]
 
     @property
     def public_key(self):
