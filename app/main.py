@@ -4,7 +4,6 @@ import urllib.request
 from os import linesep
 from urllib import error as url_err
 
-from scheduler import Scheduler
 from utils import start_logger, stop_logger, worker_config, LOG_QUEUE, ArgsException, e_print
 
 NEWLINE: str = linesep
