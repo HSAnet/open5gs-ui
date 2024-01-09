@@ -5,26 +5,31 @@ from typing import List
 
 from app.utils import py_pcap as pcap
 from app.utils.open5g_rake import Open5GRake, Open5gsException
+from app.utils import Server
+from app.utils import Config
 
 
 class MonitoringAgent:
 
-    def __init__(self, bpf_filter: List, network_device: str, delay: str):
+    def __init__(self, config: Config):
         dev_list: List[str] = [dev.name for dev in pcap.pcap.find_all_devs()]
-        if network_device not in dev_list:
-            raise AttributeError(f'Network device not found: {network_device}\nDevices found: [{'|'.join(dev_list)}]')
-        if not delay.isdigit():
-            raise AttributeError(f'Unexpected delay value: {delay}\nDelay must be integer')
-        self._bpf_filter = bpf_filter
-        self._delay = int(delay)
-        self._network_device = network_device
+        if config.device not in dev_list:
+            raise AttributeError(f'Network device not found: {config.device}\nDevices found: [{'|'.join(dev_list)}]')
+        if not config.delay.isdigit():
+            raise AttributeError(f'Unexpected delay value: {config.delay}\nDelay must be integer')
+        self._bpf_filter = config.bpf_filter
+        self._delay = int(config.delay)
+        self._network_device = config.device
         self._agent_logger = logging.getLogger(__name__)
         self._log_rake: Open5GRake = Open5GRake()
-        self._net_cap: pcap.pcap.Capture = pcap.pcap.capture(self._network_device, bpf_filter)
+        self._net_cap: pcap.pcap.Capture = pcap.pcap.capture(self._network_device, config.bpf_filter)
+        # Todo: Need to clarify how communication should be implemented / check django-restframework for async possibility
+        # try:
+        #     self._server_con: Server = Server(config=config)
+        # except:
+        #     print(traceback.format_exc())
 
     def run(self):
-        # Todo: Network capture needs some sort of timeout.
-        # Currently the network capture waits until it captures something ...
         while True:
             try:
                 start_time = time.time()
@@ -44,12 +49,14 @@ class MonitoringAgent:
                 print(traceback.format_exc())
 
     def _collect_logs(self, delta: int):
+        # self._log_rake.rake_json(time_delta=delta)
         print(self._log_rake.rake_json(time_delta=delta))
 
     def _capture_network_traffic(self):
         if self._net_cap.error():
             raise pcap.pcap.NetworkError(self._net_cap.get())
         else:
+            # self._net_cap.get()
             print(self._net_cap.get())
 
     def _send_data(self):
