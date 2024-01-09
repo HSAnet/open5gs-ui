@@ -6,7 +6,7 @@ from pathlib import Path
 
 class _Pattern(Enum):
     DELAY = re.compile(r'^Delay[\s=]+(?P<delay>\d+)?', re.MULTILINE)
-    SERVER = re.compile(r'^Server[\s=]+(?P<server>(?:25[0-5]|(?:2[0-4]|1\d|[1-9]|)\d\.?\b){4})?', re.MULTILINE)
+    SERVER = re.compile(r'^Server[\s=]+(?P<server>.+)?', re.MULTILINE)
     PORT = re.compile(r'^Port[\s=]+(?P<port>\d+)?', re.MULTILINE)
     SERVER_KEY = re.compile(r'^Server_Key[\s=]+(?P<server_key>.+)?', re.MULTILINE)
     SERVER_SNI = re.compile(r'^Server_SNI[\s=]+(?P<server_sni>.+)?', re.MULTILINE)
