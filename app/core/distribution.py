@@ -1,7 +1,7 @@
 import logging
 from typing import Union
 from pathlib import Path
-from multiprocessing import Process
+from multiprocessing import Process, Queue
 
 from app.utils import Config, ExecError, worker_config, LOG_QUEUE
 from .data_stream import MonitoringAgent
@@ -9,15 +9,14 @@ from .data_stream import MonitoringAgent
 
 class ObsProcess(Process):
 
-    def __init__(self, bpf_filter, device_name, time_delay, *args, **kwargs):
+    def __init__(self, config_queue: Queue):
         super(ObsProcess, self).__init__()
-        self._bpf_filter = bpf_filter
-        self._device_name = device_name
-        self._time_delay = time_delay
+        self._config_queue: Queue = config_queue
 
     def run(self):
         worker_config(LOG_QUEUE)
-        local_agent: MonitoringAgent = MonitoringAgent(self._bpf_filter, self._device_name, self._time_delay)
+        config: Config = self._config_queue.get()
+        local_agent: MonitoringAgent = MonitoringAgent(config)
         local_agent.run()
 
 
@@ -27,13 +26,16 @@ class Valve:
         valve_logger = logging.getLogger(__name__)
         try:
             self._config: Config = Config(config_path if config_path else Path.cwd() / 'settings.conf')
-            # todo create server_connection
+            self._config_queue: Queue = Queue(-1)
         except AttributeError as ae:
+            # Config could not be initialised
             valve_logger.critical(str(ae))
             raise ExecError()
 
     def run(self):
+        self._config_queue.put(self._config)
         self.__manage_data()
+        self._config_queue.put(self._config)
         self.__manage_ue()
 
     def __manage_ue(self) -> None:
@@ -43,6 +45,5 @@ class Valve:
         pass
 
     def __manage_data(self) -> None:
-        obs_worker = ObsProcess(self._config.bpf_filter, self._config.device, self._config.delay)
-        #print(self._config.bpf_filter)
+        obs_worker = ObsProcess(self._config_queue)
         obs_worker.start()
