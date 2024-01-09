@@ -3,6 +3,7 @@ from subprocess import run
 import fcntl
 import time
 from typing import List
+import re
 
 
 @contextmanager
@@ -33,6 +34,29 @@ def cmd_execution(service_list: List[str]):
     """
     for service in service_list:
         run(f'journalctl -u {service} -b'.split(' '), capture_output=True, text=True, check=True)
+
+
+status_pattern = re.compile(r'Active:\s'                     # Looking for Active: with a trailing whitespace
+                            r'(?P<status>\w+)'                      # Followed by (active/inactive) and grouped
+                            r'.*?'                                  # Follwed by a random amount of character
+                            r'(?<=since)[\D\s]*'                    # The date is prefixed by since and an abreviation of the day
+                            r'(?P<date>[\d\s\-:]+)'                 # The date consinsts of digits, whitespaces and the 
+                                                                    # character [-:]. Includes trailing whitespace.
+                            r'(.*?Memory:\s(?P<memory>[\d.]+))?'    # The Memory info only exists if the service is active -> ()?
+                            r'.*?'                                  # Randon number of characters
+                            r'CPU:\s'                               # Followed by CPU with a trailing whitespace
+                            r'(?P<cpu>\d+)'                         # Only grab the digits and group it.
+                            , re.DOTALL | re.VERBOSE)
+
+
+log_pattern = re.compile(r'(?P<date>\d{2}/\d{2})'            # The log date consists of day and mont like 30/02
+                         r'\s'                                      # Followed by a whitespace char
+                         r'(?P<time>[\d:]+)'                        # The time consists of digits and ':'
+                         r'.*?'                                     # Random info between time and log-level
+                         r'(?P<level>DEBUG|INFO|WARNING|CRITICAL)'  # The log-level is one of the listet words
+                         r':\s'                                     # Followed by a whitespace char
+                         r'(?P<msg>.*)',                            # The rest of the line is the log message
+                         re.MULTILINE | re.VERBOSE)
 
 
 if __name__ == '__main__':
