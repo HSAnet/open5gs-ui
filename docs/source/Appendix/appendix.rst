@@ -1,6 +1,27 @@
 Appendix
 ********
 
+Appendix:
+
+
+
+
+Test Setup
+==========
+
+Open5gs
+-------
+
+
+System setup
+++++++++++++
+
+.. literalinclude:: ../_static/open5gs_system_setup.sh
+   :language: sh
+   :caption: initial system setup for Open5Gs
+
+
+
 Config
 ======
 
