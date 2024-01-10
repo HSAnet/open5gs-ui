@@ -3,10 +3,10 @@ import logging
 import traceback
 from typing import List
 
-from app.utils import py_pcap as pcap
-from app.utils.open5g_rake import Open5GRake, Open5gsException
-from app.utils import Server
-from app.utils import Config
+from ..utils import py_pcap as pcap
+from ..utils.open5g_rake import Open5GRake, Open5gsException
+from ..utils import Server
+from ..utils import Config
 
 
 class MonitoringAgent:
