@@ -39,7 +39,7 @@ def _init_args():
 def _check_rest_server(args: argparse.Namespace):
     logger = logging.getLogger()
     try:
-        response_code: int = urllib.request.urlopen(f'{args.dest}:{'' if not args.port else args.port}').getcode()
+        response_code: int = urllib.request.urlopen(f'{args.dest}:{"" if not args.port else args.port}').getcode()
     except url_err.HTTPError as http_err:
         response_code = http_err.code
         logger.critical(http_err)
@@ -89,8 +89,6 @@ def main():
         start_logger('INFO' if args.verbose else 'WARNING' 'CRITICAL' if args.quite else 'WARNING')
         _check_rest_server(args=args)
 
-        scheduler: Scheduler = Scheduler(1 if not args.delay else int(args.delay))
-        scheduler.run()
     # Logger not necessarily initiated yet!
     except ArgsException as ae:
         e_print(ae.msg)
