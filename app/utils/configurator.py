@@ -7,14 +7,14 @@ class Config:
     def __init__(self, config_file: Path):
         """
 
-        .:raises AttributeError: if provided config-file does not exist / permission to access not granted or
-        is not readable          other File related OSErrors
+        :raises AttributeError: if provided config-file does not exist / permission to access not granted or
+                                is not readable and other File related OSErrors
         :param config_file: Path to the config file
         """
         if not (config_file.exists() and config_file.is_file()):
             raise AttributeError('Config file not found!')
         self._config_file = config_file
-        self._line_pattern = re.compile(r'^(?P<key>\w+)[\s=]{3}(?P<value>.*)', re.M)
+        self._line_pattern = re.compile(r'^(?P<key>\w+)\s=\s(?P<value>\S*)', re.M)
         self._parse_config_file()
 
     def _parse_config_file(self) -> None:
