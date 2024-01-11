@@ -12,7 +12,6 @@ import logging
 bytes_to_int: Callable[[bytes], int] = lambda b: int.from_bytes(b, byteorder='big', signed=False)
 bytes_to_ip: Callable[[int], str] = lambda b: socket.inet_ntop(socket.AF_INET6, b) if len(b) > 4 else socket.inet_ntop(socket.AF_INET, b)
 str_to_bytes: Callable[[str], bytes] = lambda s: s.encode('utf-8')
-dev_to_str: Callable[[], str] = lambda device: device.decode("utf-8")
 
 
 class NetworkDevice:
@@ -155,13 +154,13 @@ class NetworkDevice:
         :raises NetworkError: If timeout or snap-length could not be set.
         """
         if 0 != (status := pcap.set_snaplen(self.__pcap_dev, self.__snapshot_len)):
-            raise NetworkError(f'Device: {dev_to_str(self.__pcap_dev)}\nStatus: {str(status)}')
+            raise NetworkError(f'Device: {self.__name}\nStatus: {str(status)}')
         try:
             pcap.set_immediate_mode(self.__pcap_dev, 1)
         except AttributeError as err:
-            self.__pcap_logger.warning(f'Device: {dev_to_str(self.__pcap_dev)} does not support immediate mode!\n{str(err)}')
+            self.__pcap_logger.warning(f'Device: {self.__name} does not support immediate mode!\n{str(err)}')
         if pcap.set_timeout(self.__pcap_dev, self.__timeout) != 0:
-            raise NetworkError(f'Device: {dev_to_str(self.__pcap_dev)} - not able to set timeout!')
+            raise NetworkError(f'Device: {self.__name} - not able to set timeout!')
 
     def __activate_device(self, ):
         """
@@ -170,7 +169,7 @@ class NetworkDevice:
         :raises NetworkError: If device could not be activated
         """
         if (status := pcap.activate(self.__pcap_dev)) < 0:
-            raise NetworkError(f'Cannot activate device: {dev_to_str(self.__pcap_dev)}')
+            raise NetworkError(f'Cannot activate device: {self.__name}')
         elif status > 0:
             self.__pcap_logger.warning(f'Error occurred while Network device activation!\n'
                            f'{dev_err(self.__pcap_dev)}')
@@ -204,8 +203,6 @@ class NetworkDevice:
             except NetworkError as n_err:
                 if self.__f_code:
                     pcap.freecode(ct.byref(self.__f_code))
-                if self.__pcap_dev:
-                    pcap.close(self.__pcap_dev)
                 raise SetupError(n_err.msg)
 
     def __str__(self) -> str:
