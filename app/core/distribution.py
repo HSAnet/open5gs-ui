@@ -3,7 +3,7 @@ from typing import Union
 from pathlib import Path
 from multiprocessing import Process, Queue
 
-from ..utils import Config, ExecError, worker_config, LOG_QUEUE
+from app.utils import Config, ExecError, worker_config, LOG_QUEUE
 from .data_stream import MonitoringAgent
 
 
