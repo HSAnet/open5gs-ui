@@ -6,3 +6,4 @@ server_stub.py
 docs/build
 docs/source/heading_info.txt
 venv
+app.egg-info
