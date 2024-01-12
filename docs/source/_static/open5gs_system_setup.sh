@@ -27,5 +27,5 @@ sudo chmod 700 /etc/init.d/open5g_startup.sh
 
 # Download configuration files
 sudo rm /etc/open5gs/upf.yaml /etc/open5gs/amf.yaml
-sudo wget -P /etc/open5gs/ https://download-link
-sudo wget -P /etc/open5gs/ https://download-link
+sudo wget -P /etc/open5gs/ https://open5gs-ui.readthedocs.io/en/latest/_downloads/631b3452d949bb64b2ef1bc7ea24425f/amf.yaml
+sudo wget -P /etc/open5gs/ https://open5gs-ui.readthedocs.io/en/latest/_downloads/772cdda825a53a95ddd4cae6821baf8c/upf.yaml
