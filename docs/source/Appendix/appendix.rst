@@ -22,7 +22,16 @@ System setup
 
 .. only:: builder_html or readthedocs
 
-   :download:`Download <../_static/open5gs_system_setup.sh>`.
+   :download:`Download Script above <../_static/open5gs_system_setup.sh>`.
+
+Configuration
++++++++++++++
+
+To configure Open5GS, you'll need to edit the amf.yaml and upf.yaml files located in the ``/etc/open5gs/`` directory.
+These files are quite lengthy; therefore, either download the pre-configured files or using the
+provided wget command in the script above to fetch them :download:`amf.yaml <../_static/amf.yaml>`
+:download:`upf.yaml <../_static/upf.yaml>`.
+
 
 Install and start
 +++++++++++++++++
@@ -33,8 +42,23 @@ Install and start
 
 .. only:: builder_html or readthedocs
 
-   :download:`Download <../_static/open5gs_python_setup.sh>`.
+   :download:`Download Script above <../_static/open5gs_python_setup.sh>`.
 
+Ueransim
+========
+
+.. literalinclude:: ../_static/ueransim_system_setup.sh
+   :language: sh
+   :caption: initial system setup for UERANSIM
+
+.. only:: builder_html or readthedocs
+
+   :download:`Download Script above <../_static/ueransim_system_setup.sh>`.
+
+.. only:: builder_html or readthedocs
+
+To configure UERANSIM, the :download:`GNodeB-config <../_static/gnb1.yaml>` and the
+:download:`UserEquipment-config <../_static/ue1.yaml>` ought to be added to ``~/UERANSIM/config``.
 
 
 Config
