@@ -20,6 +20,21 @@ System setup
    :language: sh
    :caption: initial system setup for Open5Gs
 
+.. only:: builder_html or readthedocs
+
+   :download:`Download <../_static/open5gs_system_setup.sh>`.
+
+Install and start
++++++++++++++++++
+
+.. literalinclude:: ../_static/open5gs_python_setup.sh
+   :language: sh
+   :caption: Downloading the client-application and starting it
+
+.. only:: builder_html or readthedocs
+
+   :download:`Download <../_static/open5gs_python_setup.sh>`.
+
 
 
 Config

@@ -1,16 +1,20 @@
 # clone app
 mkdir ~/client_app
 git clone https://github.com/HSAnet/open5gs-ui.git ~/client_app
+# Installing Libpcap-dev
+sudo apt install -y libpcap-dev
 # Installing python
-sudo add-apt-repository universe
+sudo add-apt-repository ppa:deadsnakes/ppa -y
 sudo apt update
-VERSION=3.11
-sudo apt install python$VERSION
-sudo apt install python$VERSION-venv
+VERSION=3.12
+sudo apt install -y python$VERSION python$VERSION-venv
 # create virtual environment
 python$VERSION -m venv ~/client_app/venv
 source ~/client_app/venv/bin/activate
+pip install --upgrade pip
 # Installing packages
 python -m pip install regex libpcap argparse pandas
-# Installing Libpcap-dev
-sudo apt install libpcap-dev
+pip install -e ~/client_app
+# Network traffic can only be captured executing the application as root-user
+APP_DIR=/home/$(whoami)/client_app/app
+sudo bash -c "cd ${APP_DIR}; source ../venv/bin/activate; python main.py"

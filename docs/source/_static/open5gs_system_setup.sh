@@ -18,4 +18,9 @@ sudo apt-get -y update && apt install -y open5gs
 # Open5gs - WebUI
 curl -fsSL https://open5gs.org/opten5gs/assets/webui/install | sudo -E bash -
 # Check of of WebUI
-systemctl status open5gs-webui.service | grea 'Ready on'
+systemctl status open5gs-webui.service | grep 'Ready on'
+
+# Open5g Network settings
+sudo touch /etc/init.d/open5g_startup.sh
+sudo bash -c "echo -e 'sysctl -w net.ipv4.ip_forward=1; sysctl -w net.ipv6.conf.all.forwarding=1; iptables -t nat -A POSTROUTING -s 10.45.0.0/16 ! -o ogstun -j MASQUERADE; ip6tables -t nat -A POSTROUTING -s 2001:db8:cafe::/48 ! -o ogstun -j MASQUERADE; ufw disable; iptables -I INPUT -i ogstun -j ACCEPT; iptables -I INPUT -s 10.45.0.0/16 -j DROP; ip6tables -I INPUT -s 2001:db8:cafe::/48 -j DROP' > /etc/init.d/open5g_startup.sh"
+sudo chmod 700 /etc/init.d/open5g_startup.sh
