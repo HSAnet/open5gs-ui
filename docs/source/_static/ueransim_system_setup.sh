@@ -32,3 +32,5 @@ echo -e "function start_ueransim() {\n\t~/UERANSIM/build/nr-gnb -c ~/UERANSIM/co
 
 # Restart System
 sudo systemctl reboot
+
+# sudo ip r add default dev uesimtun0

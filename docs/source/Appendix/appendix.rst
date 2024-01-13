@@ -45,7 +45,7 @@ Install and start
    :download:`Download Script above <../_static/open5gs_python_setup.sh>`.
 
 Ueransim
-========
+--------
 
 .. literalinclude:: ../_static/ueransim_system_setup.sh
    :language: sh

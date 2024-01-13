@@ -8,15 +8,14 @@ sudo systemctl start mongod
 sudo systemctl enable mongod
 # NodeJS
 sudo mkdir -p /etc/apt/keyrings
-curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | sudo gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg
-echo "deb [arch=amd64 signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_20.x nodistro main" | sudo tee /etc/apt/sources.list.d/nodesource.list
-sudo apt-get install nodejs
+curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash - &&\
+sudo apt-get install -y nodejs
 # Open5gs
-sudo add-apt-repository ppa:open5gs/latest
+sudo add-apt-repository ppa:open5gs/latest -y
 sudo apt-get -y update && apt install -y open5gs
 # Restart the system
 # Open5gs - WebUI
-curl -fsSL https://open5gs.org/opten5gs/assets/webui/install | sudo -E bash -
+curl -fsSL https://open5gs.org/open5gs/assets/webui/install | sudo -E bash -
 # Check of of WebUI
 systemctl status open5gs-webui.service | grep 'Ready on'
 
