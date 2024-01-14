@@ -1,9 +1,8 @@
 import socket
 import struct
 import ipaddress
-import traceback
 
-from .._utils import Packet, NetworkError
+from .._utils import Packet
 
 import numpy as np
 from typing import Callable, Dict, List, Union
@@ -17,7 +16,6 @@ parse_ports: Callable[[bytes], tuple] = lambda b: struct.unpack_from(bld_str_fmt
 # Store supported EtherTypes (from socket module) in dict
 socket_eth_types: Dict[Union[str, int], int] = {key: value for (key, value) in socket.__dict__.items() if 'ETHERTYPE' in key}
 socket_eth_types |= {ipv: key for ipv, key in zip([4, 6], [value for key, value in socket.__dict__.items() if 'ETHERTYPE_IP' in key])}
-
 
 
 # Bits to struct.string_format dict
