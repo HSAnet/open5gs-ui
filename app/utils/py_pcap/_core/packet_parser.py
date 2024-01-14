@@ -2,13 +2,14 @@ import socket
 import struct
 import ipaddress
 
-from .._utils import Packet
+from .._utils import Packet, NetworkDevice
 
 import numpy as np
 from typing import Callable, Dict, List, Union
 
 # string format for mac address
 bytes_to_mac: Callable[[bytes], str] = lambda b: ':'.join(map('{:02x}'.format, b))
+mac_address_valid: Callable[[bytes, bytes, str], tuple] = lambda src, dst, dev: (None, None) if dev.mac not in (adr := (bytes_to_mac(src), bytes_to_mac(dst))) else adr
 # parse bytes to ipv4/6 address
 bytes_to_ip: Callable[[bytes], str] = lambda b: str(ipaddress.ip_address(b))
 # parse two 16bit Integers to python Ints
@@ -38,7 +39,7 @@ def bld_str_fmt(bit_list: List[int]) -> str:
     return '>' + ''.join([string_format[1].format(bits // 8) if bits not in string_format.keys() else string_format[bits] for bits in bit_list])
 
 
-def __parse_ethernet_frame(data: bytes, ref: np.array) -> None:
+def __parse_ethernet_frame(data: bytes, ref: np.array, net_dev: NetworkDevice) -> None:
     """
     Function parses provided data into ethernet frame (src- a. dst MAC + Ethertype)
 
@@ -53,9 +54,8 @@ def __parse_ethernet_frame(data: bytes, ref: np.array) -> None:
     """
     dst_mac, src_mac, eth_type = struct.unpack_from('>6s6sH', data)
     ipv: int = struct.unpack_from('!B', data[:2])[0] >> 4
+    ref[Packet.SOURCE_MAC.value], ref[Packet.DESTINATION_MAC.value] = mac_address_valid(src_mac, dst_mac, net_dev)
     ref[Packet.ETHERTYPE.value] = eth_type if eth_type in socket_eth_types.values() else socket_eth_types.get(ipv, 2054)
-    ref[Packet.SOURCE_MAC.value] = bytes_to_mac(src_mac)
-    ref[Packet.DESTINATION_MAC.value] = bytes_to_mac(dst_mac)
 
 
 def __parse_ip_packet(data: bytes, ref: np.array) -> None:
@@ -128,7 +128,7 @@ def __parse_vlan_packet(data: bytes, ref: np.array) -> None:
     pass
 
 
-def parse_packet(packet_data: bytes, ex_packet_data: List[Union[str, int, None]]) -> None:
+def parse_packet(net_dev: NetworkDevice, packet_data: bytes, ex_packet_data: List[Union[str, int, None]]) -> None:
     """
     Function parses bytes to python data and stores it in provided list.
 
@@ -136,7 +136,7 @@ def parse_packet(packet_data: bytes, ex_packet_data: List[Union[str, int, None]]
     :param ex_packet_data: reference to list
     """
     try:
-        __parse_ethernet_frame(packet_data, ex_packet_data)
+        __parse_ethernet_frame(packet_data, ex_packet_data, net_dev)
         eth_type_str = [key.rsplit('_')[-1].lower() for key, value in socket_eth_types.items()
                         if not isinstance(key, int)
                         and ex_packet_data[Packet.ETHERTYPE.value] == value][0]

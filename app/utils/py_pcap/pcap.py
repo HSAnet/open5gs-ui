@@ -64,7 +64,7 @@ def __capture(q_in: Queue, c_obj: Capture, net_dev: NetworkDevice):
     while True:
         packet_data = PacketData()
         status = pcap.dispatch(net_dev.pcap_device, -1, __packet_handler, ct.cast(ct.pointer(packet_data), ct.POINTER(ct.c_ubyte)))
-        if status < 0:
+        if status < 0 or not parse_proc.is_alive():
             break
         if status != 0:
             q_in.put({
@@ -96,7 +96,7 @@ def __packet_parser(q_in: Queue, c_obj: Capture, net_dev: NetworkDevice):
     packet_lst = [[] for _ in range(len(Packet.__members__))]
     while True:
         try:
-            if not SharedFlags.FLAG_GET.value and not q_in.empty():
+            if not q_in.empty():
                 pkg_data: Dict[str, Union[Dict[str, Union[bytes, int]], bytes]] = q_in.get()
                 packet: bytes = pkg_data['pkg']
                 header: Dict[str, Union[bytes, int]] = pkg_data['hdr']

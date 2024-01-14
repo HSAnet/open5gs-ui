@@ -1,3 +1,4 @@
+import fcntl
 import socket
 import struct
 import ctypes as ct
@@ -24,9 +25,14 @@ class NetworkDevice:
         self.__set_flags(device=device)
         self.__set_network_families(device=device)
         self.__pcap_logger: logging.Logger = logging.getLogger(__name__)
+        self.__mac: str = self.__get_mac()
 
         self.__pcap_dev = None
         self.__f_code = None
+
+    @property
+    def mac(self):
+        return self.__mac
 
     @property
     def name(self) -> str:
@@ -43,6 +49,14 @@ class NetworkDevice:
     @property
     def snapshot_len(self) -> int:
         return self.__snapshot_len
+
+    def __get_mac(self) -> Union[str, None]:
+        try:
+            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            info = fcntl.ioctl(s.fileno(), 0x8927, struct.pack('256s', bytes(self.name, 'utf-8')[:15]))
+            return ':'.join('%02x' % b for b in info[18:24])
+        except OSError:
+            return None
 
     def ready(self) -> bool:
         return all(map(lambda flag: flag in self.__flags, ['UP', 'RUNNING']))
