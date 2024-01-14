@@ -96,7 +96,7 @@ def __packet_parser(q_in: Queue, c_obj: Capture, net_dev: NetworkDevice):
     packet_lst = [[] for _ in range(len(Packet.__members__))]
     while True:
         try:
-            if not q_in.empty():
+            if not SharedFlags.FLAG_GET.value and not q_in.empty():
                 pkg_data: Dict[str, Union[Dict[str, Union[bytes, int]], bytes]] = q_in.get()
                 packet: bytes = pkg_data['pkg']
                 header: Dict[str, Union[bytes, int]] = pkg_data['hdr']
@@ -122,7 +122,6 @@ def __packet_parser(q_in: Queue, c_obj: Capture, net_dev: NetworkDevice):
                 packet_lst = [[] for _ in range(len(Packet.__members__))]
         except ValueError:
             # Up/Download could not be defined - Further processing impossible
-            print('ValueError')
             pass
         except KeyboardInterrupt:
             # End process
