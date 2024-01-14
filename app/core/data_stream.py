@@ -1,3 +1,5 @@
+import os
+import sys
 import time
 import logging
 import traceback
@@ -7,6 +9,7 @@ from app.utils import py_pcap as pcap
 from app.utils.open5g_rake import Open5GRake, Open5gsException
 from app.utils import Server
 from app.utils import Config
+from app.utils import DataConverterInterface, DataConverterLocal, DataConvertWeb
 
 
 class MonitoringAgent:
@@ -18,11 +21,12 @@ class MonitoringAgent:
         if not config.delay.isdigit():
             raise AttributeError(f'Unexpected delay value: {config.delay}\nDelay must be integer')
         # self._bpf_filter = config.bpf_filter
+        self._data_converter: DataConverterInterface = DataConverterLocal()
         self._delay = int(config.delay)
         self._network_device = config.device
         self._agent_logger = logging.getLogger(__name__)
         self._log_rake: Open5GRake = Open5GRake()
-        # self._net_cap: pcap.pcap.Capture = pcap.pcap.capture(self._network_device, [])
+        self._net_cap: pcap.pcap.Capture = pcap.pcap.capture(self._network_device, [])
         # Todo: Need to clarify how communication should be implemented / check django-restframework for async possibility
         # try:
         #     self._server_con: Server = Server(config=config)
@@ -34,7 +38,7 @@ class MonitoringAgent:
             try:
                 start_time = time.time()
                 self._collect_logs(self._delay if 'elapsed_time' not in locals() else elapsed_time + self._delay)
-                # self._capture_network_traffic()
+                self._capture_network_traffic()
                 self._send_data()
                 end_time = time.time()
                 if (elapsed_time := (end_time - start_time)) < self._delay:
@@ -50,14 +54,17 @@ class MonitoringAgent:
 
     def _collect_logs(self, delta: int):
         # self._log_rake.rake_json(time_delta=delta)
-        print(self._log_rake.rake_json(time_delta=delta))
+        # print(self._log_rake.rake_json(time_delta=delta))
+        print(self._data_converter.convert_service_data(self._log_rake.rake_json(time_delta=delta)))
 
     def _capture_network_traffic(self):
         if self._net_cap.error():
             raise pcap.pcap.NetworkError(self._net_cap.get())
         else:
             # self._net_cap.get()
-            print(self._net_cap.get())
+            if not (data := self._data_converter.convert_network_data(self._net_cap.get())).empty:
+                print(data)
+                print(chr(27) + "[2J")
 
     def _send_data(self):
         pass
