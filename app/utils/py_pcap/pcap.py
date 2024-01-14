@@ -122,6 +122,7 @@ def __packet_parser(q_in: Queue, c_obj: Capture, net_dev: NetworkDevice):
                 packet_lst = [[] for _ in range(len(Packet.__members__))]
         except ValueError:
             # Up/Download could not be defined - Further processing impossible
+            print('ValueError')
             pass
         except KeyboardInterrupt:
             # End process
