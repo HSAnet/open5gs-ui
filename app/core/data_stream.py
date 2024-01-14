@@ -22,7 +22,7 @@ class MonitoringAgent:
         self._network_device = config.device
         self._agent_logger = logging.getLogger(__name__)
         self._log_rake: Open5GRake = Open5GRake()
-        self._net_cap: pcap.pcap.Capture = pcap.pcap.capture(self._network_device, [])
+        # self._net_cap: pcap.pcap.Capture = pcap.pcap.capture(self._network_device, [])
         # Todo: Need to clarify how communication should be implemented / check django-restframework for async possibility
         # try:
         #     self._server_con: Server = Server(config=config)
@@ -34,7 +34,7 @@ class MonitoringAgent:
             try:
                 start_time = time.time()
                 self._collect_logs(self._delay if 'elapsed_time' not in locals() else elapsed_time + self._delay)
-                self._capture_network_traffic()
+                # self._capture_network_traffic()
                 self._send_data()
                 end_time = time.time()
                 if (elapsed_time := (end_time - start_time)) < self._delay:
