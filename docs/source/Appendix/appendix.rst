@@ -61,6 +61,20 @@ To configure UERANSIM, the :download:`GNodeB-config <../_static/gnb1.yaml>` and 
 :download:`UserEquipment-config <../_static/ue1.yaml>` ought to be added to ``~/UERANSIM/config``.
 
 
+.. code-block:: sh
+   :caption: example console output
+
+      Direction       Source_ip    Source_Host  Destination_ip      Dest_Host       Size
+   0         UP       10.45.0.4   Unknown Host   142.251.37.10  muc11s23-i...  364 bytes
+   1         UP       10.45.0.4   Unknown Host   34.107.243.93  93.243.107...       1 KB
+   2         UP       10.45.0.4   Unknown Host  34.149.100.209  209.100.14...  100 bytes
+   3         UP       10.45.0.4   Unknown Host         8.8.8.8     dns.google  557 bytes
+   4       Down   142.251.37.10  muc11s23-i...       10.45.0.4   Unknown Host       1 KB
+   5       Down   34.107.243.93  93.243.107...       10.45.0.4   Unknown Host       4 KB
+   6       Down  34.149.100.209  209.100.14...       10.45.0.4   Unknown Host       1 KB
+   7       Down         8.8.8.8     dns.google       10.45.0.4   Unknown Host       1 KB
+
+
 Config
 ======
 
