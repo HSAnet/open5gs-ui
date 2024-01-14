@@ -136,7 +136,6 @@ def __packet_parser(q_in: Queue, c_obj: Capture, net_dev: NetworkDevice):
             return
 
 
-
 def capture(device_name: str, bpf_filter: List[str]):
     """
     :raises NetworkError: If further processing not possible due to network-error
