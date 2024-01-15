@@ -1,3 +1,4 @@
+PYTHON_VERSION=3.12
 # clone app
 mkdir ~/client_app
 git clone https://github.com/HSAnet/open5gs-ui.git ~/client_app
@@ -6,10 +7,9 @@ sudo apt install -y libpcap-dev
 # Installing python
 sudo add-apt-repository ppa:deadsnakes/ppa -y
 sudo apt update
-VERSION=3.12
-sudo apt install -y python$VERSION python$VERSION-venv
+sudo apt install -y python$PYTHON_VERSION python$PYTHON_VERSION-venv
 # create virtual environment
-python$VERSION -m venv ~/client_app/venv
+python$PYTHON_VERSION -m venv ~/client_app/venv
 source ~/client_app/venv/bin/activate
 pip install --upgrade pip
 # Installing packages
